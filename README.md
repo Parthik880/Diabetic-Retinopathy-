@@ -24,6 +24,9 @@ The five output indices (`0` through `4`) represent the five DR grades used by t
 |-- grad.py                  # Grad-CAM implementation
 |-- inference.py             # Single-image prediction and heatmap example
 |-- training_history_dr.csv  # Per-epoch training and validation metrics
+|-- confusion_matrix_dr.npy  # NumPy confusion matrix (grades 0-4)
+|-- confusion_matrix_dr.csv  # Labeled, human-readable confusion matrix
+|-- requirements.txt         # Project-specific Python dependencies
 `-- README.md
 ```
 
@@ -41,7 +44,7 @@ Model checkpoints, datasets, virtual environments, and cache files are intention
 Install the Python dependencies with:
 
 ```bash
-python -m pip install torch torchvision numpy matplotlib pillow
+python -m pip install -r requirements.txt
 ```
 
 For NVIDIA GPU acceleration, install a CUDA-enabled PyTorch build that matches your driver and CUDA environment. The inference script automatically selects CUDA when `torch.cuda.is_available()` is true and otherwise runs on the CPU.
@@ -109,6 +112,23 @@ gradcam.remove_hooks()
 `training_history_dr.csv` contains metrics for 20 training epochs. It records training and validation loss and accuracy, quadratic weighted kappa (QWK), referable-DR sensitivity, specificity and AUROC, confusion counts, macro and weighted multiclass metrics, per-class precision/recall/F1/AUC/support, and the learning rate.
 
 The CSV is provided as training evidence and for plotting or comparing model behavior; it is not required to run inference.
+
+## DR Grading Confusion Matrix
+
+| True \ Pred | Grade 0 | Grade 1 | Grade 2 | Grade 3 | Grade 4 |
+| ----------- | ------- | ------- | ------- | ------- | ------- |
+| Grade 0     | 1416    | 53      | 47      | 1       | 3       |
+| Grade 1     | 130     | 1062    | 99      | 4       | 10      |
+| Grade 2     | 115     | 134     | 1040    | 73      | 37      |
+| Grade 3     | 0       | 9       | 39      | 1200    | 30      |
+| Grade 4     | 4       | 8       | 49      | 33      | 1200    |
+
+Rows are the true DR grades and columns are the predicted DR grades, using class order 0 through 4. Values on the diagonal are correct predictions. Grade 2 shows more confusion with its neighboring grades than Grades 0, 3, and 4.
+
+The raw matrix is available in two formats:
+
+- `confusion_matrix_dr.npy` for direct loading with NumPy
+- `confusion_matrix_dr.csv` for labeled tabular analysis
 
 ## Notes
 
