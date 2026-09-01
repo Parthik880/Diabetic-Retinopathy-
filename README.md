@@ -1,4 +1,7 @@
 # Diabetic Retinopathy Grading with ConvNeXt and Grad-CAM
+#Checkpoints link:
+https://drive.google.com/drive/folders/1WT4wW6LAY9GvKWYWWDPUh03mFhmbplzL?usp=drive_link
+
 
 This project grades diabetic retinopathy (DR) from retinal fundus images. It uses a pretrained ConvNeXt image classifier with a five-output classification head and includes Grad-CAM visualization to help explain which retinal regions influenced a prediction.
 
