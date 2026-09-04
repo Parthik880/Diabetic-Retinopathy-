@@ -13,20 +13,18 @@ live in `inference/`.
 |-- models/
 |   |-- grade/
 |   |   |-- model.py          # ConvNeXt architecture and trained checkpoint loading
-|   |   |-- predict.py        # unchanged preprocessing and reusable grade prediction
-|   |   |-- gradcam.py        # optional grade visualization support
-|   |   `-- weights/          # place the external grade checkpoint here
+|   |   |-- predict.py        # prediction vectors and saved Grad-CAM overlays
+|   |   |-- gradcam.py        # ConvNeXt Grad-CAM implementation
+|   |   |-- weights/          # place the external grade checkpoint here
+|   |   `-- results/          # persistent grade training/evaluation artifacts
 |   `-- iqa/
 |       |-- model.py          # pyiqa TOPIQ-NR initialization
 |       |-- predict.py        # reusable raw IQA-score prediction
 |       `-- weights/          # reserved; TOPIQ downloads to the torch cache
 |-- inference/
-|   |-- grade_inference.py    # grade CLI and optional Grad-CAM rendering
-|   `-- iqa_inference.py      # IQA CLI
-|-- grade_results/            # existing grade-training plots
-|-- confusion_matrix_dr.npy
-|-- confusion_matrix_dr.png
-|-- training_history_dr.csv
+|   |-- grade_inference.py    # grade CLI
+|   |-- iqa_inference.py      # IQA CLI
+|   `-- outputs/gradcam/      # generated per-image overlays (ignored by Git)
 |-- requirements.txt
 `-- README.md
 ```
@@ -85,17 +83,20 @@ from models.grade.predict import predict_grade
 result = predict_grade("path/to/fundus.jpg")
 ```
 
-Add `--gradcam-output outputs/grade_cam.png` to save the same final-feature-block
-Grad-CAM visualization previously provided by the root inference script. Add
-`--show-gradcam` to display it interactively.
+The result contains separate five-value `logits` and `probabilities` lists, the
+argmax-derived `predicted_class`/`predicted_grade`, confidence, and a saved Grad-CAM
+path. Every value is JSON-serializable. Grad-CAM is enabled by default and is saved
+under `inference/outputs/gradcam/`. Use `--gradcam-output-dir` to select another
+directory or `--no-gradcam` to skip it.
 
 ### Grad-CAM interpretability
 
 `models/grade/gradcam.py` retains the original Gradient-weighted Class Activation
 Mapping implementation. It registers forward and backward hooks on the final ConvNeXt
-feature block, pools class-specific gradients, combines them with saved activations,
-and normalizes the heatmap. The visualization can help inspect which areas influenced
-a grade, but it is not an independent diagnosis or a substitute for clinical review.
+feature block (`model.model.features[-1][-1]`), pools class-specific gradients,
+combines them with saved activations, and normalizes the heatmap. The visualization
+can help inspect which areas influenced a grade, but it is not an independent
+diagnosis or a substitute for clinical review.
 
 ## IQA model: pretrained TOPIQ-NR
 
@@ -144,9 +145,10 @@ quality decision or clinical workflow threshold from it.
 
 ## Grade training artifacts
 
-`training_history_dr.csv`, `confusion_matrix_dr.npy`, `confusion_matrix_dr.png`, and
-the images in `grade_results/` are existing grade-training evidence. They are not
-required for inference and were not altered during the model-package reorganization.
+Persistent grade evaluation artifacts are stored together under
+`models/grade/results/`. This includes `grade_training.csv`, `confusion_matrix.npy`,
+`confusion_matrix.png`, and the existing metric plots. These artifacts are not
+required for inference, and their contents were not altered during relocation.
 
 The training history records 20 epochs of training/validation loss and accuracy,
 quadratic weighted kappa, referable-DR sensitivity/specificity/AUROC, confusion counts,
