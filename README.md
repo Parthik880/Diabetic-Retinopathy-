@@ -1,10 +1,55 @@
-# Diabetic Retinopathy Model Inference
+# Diabetic Retinopathy Model Pipeline
 
-This repository provides separate, reusable model packages for diabetic-retinopathy
-grading and no-reference image-quality assessment (IQA). Model construction and
-weight loading live in each model's `model.py`, preprocessing and reusable Python
-prediction functions live in `predict.py`, and user-facing command-line entry points
-live in `inference/`.
+This repository separates each model in the diabetic-retinopathy pipeline into
+an independent package. Architecture and checkpoint loading live in `model.py`,
+reusable preprocessing and prediction live in `predict.py`, and end-user command
+line entry points live under `inference/`.
+
+No training is started by this repository's inference commands. Persistent
+training and evaluation artifacts live only under the top-level `Results/`
+directory; per-image runtime files are written under `inference/outputs/`.
+
+## Pipeline
+
+```text
+Fundus image
+      |
+      v
+     IQA
+      |
+quality acceptable?
+ +----+-----+
+ |          |
+YES         NO
+ |          |
+ |        NAFNet
+ |          |
+ |       IQA again
+ |          |
+ +----------+
+      |
+      v
+UNet++ lesion segmentation
+      |
+      v
+MA / HE / EX / SE
+      |
+      v
+Grade classifier
+      |
+      v
+DR grade + lesion output + explanation
+```
+
+- **IQA** measures input image quality with pretrained TOPIQ-NR.
+- **NAFNet** restores a degraded image before quality is checked again.
+- **UNet++** segments microaneurysms (MA), hemorrhages (HE), hard exudates
+  (EX), and soft exudates (SE).
+- **Grade model** classifies diabetic-retinopathy severity into grades 0-4 and
+  can save a Grad-CAM explanation.
+
+The IQA score is raw and no quality threshold is imposed here. TOPIQ-NR and the
+generic SIDD NAFNet checkpoint are not clinically validated retinal models.
 
 ## Repository structure
 
@@ -12,237 +57,205 @@ live in `inference/`.
 .
 |-- models/
 |   |-- grade/
-|   |   |-- model.py          # ConvNeXt architecture and trained checkpoint loading
-|   |   |-- predict.py        # prediction vectors and saved Grad-CAM overlays
-|   |   |-- gradcam.py        # ConvNeXt Grad-CAM implementation
-|   |   |-- weights/          # place the external grade checkpoint here
-|   |   `-- results/          # persistent grade training/evaluation artifacts
-|   `-- iqa/
-|       |-- model.py          # pyiqa TOPIQ-NR initialization
-|       |-- predict.py        # reusable raw IQA-score prediction
-|       `-- weights/          # reserved; TOPIQ downloads to the torch cache
+|   |   |-- model.py
+|   |   |-- predict.py
+|   |   |-- gradcam.py
+|   |   `-- weights/
+|   |-- iqa/
+|   |   |-- model.py
+|   |   |-- predict.py
+|   |   `-- weights/
+|   |-- lesion/
+|   |   |-- model.py
+|   |   |-- predict.py
+|   |   |-- dataset.py
+|   |   `-- weights/epoch_018_best_dice.pth
+|   `-- restoration/
+|       |-- model.py
+|       |-- predict.py
+|       |-- nafnet/
+|       |-- weights/
+|       `-- README.md
 |-- inference/
-|   |-- grade_inference.py    # grade CLI
-|   |-- iqa_inference.py      # IQA CLI
-|   `-- outputs/gradcam/      # generated per-image overlays (ignored by Git)
+|   |-- grade_inference.py
+|   |-- iqa_inference.py
+|   |-- lesion_inference.py
+|   |-- restoration_inference.py
+|   `-- outputs/
+|       |-- gradcam/
+|       |-- lesion/
+|       `-- restoration/
+|-- Results/
+|   |-- grade_results/
+|   |-- iqa_results/
+|   |-- lesion_results/
+|   `-- restoration_results/
 |-- requirements.txt
-`-- README.md
+`-- .gitignore
 ```
 
 ## Setup
 
-Python 3.10 or newer is recommended. Install dependencies with:
+Python 3.10 or newer is recommended. Install a PyTorch build suitable for the
+machine, then install the dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Install a PyTorch build appropriate for the machine's CPU or CUDA runtime when the
-default pip selection is not suitable. Both entry points automatically use CUDA when
-available and otherwise use CPU; `--device cpu` or `--device cuda` overrides that
-selection.
+All model wrappers automatically use CUDA when available and otherwise use CPU.
+The CLIs accept `--device cpu` or `--device cuda`.
 
-## Grade model
+## Grade: five-class ConvNeXt
 
-`models/grade/model.py` retains the original `Convextnet` architecture and historical
-class name: a Torchvision ConvNeXt Tiny ImageNet-1K V1 backbone whose final classifier
-is replaced with five outputs. The five output indices (`0` through `4`) remain the
-dataset grade mapping; no new clinical labels or class reordering has been introduced.
-ConvNeXt Small remains selectable with `type="Small"`, and other `type` values retain
-the original ConvNeXt Base fallback.
+`models/grade/model.py` retains the historical `Convextnet` class: a Torchvision
+ConvNeXt Tiny ImageNet-1K backbone with its final classifier replaced by five
+outputs. The unchanged class order is `[0, 1, 2, 3, 4]`.
 
-`models/grade/predict.py` preserves the original preprocessing exactly:
+Preprocessing remains RGB conversion, resize to 224x224, tensor conversion, and
+ImageNet normalization. `predict_grade` returns the five logits, five softmax
+probabilities, selected grade, confidence, and optional saved Grad-CAM path.
 
-1. convert the image to RGB;
-2. resize to `224 x 224`;
-3. convert to a `[0,1]` tensor;
-4. normalize with ImageNet mean `[0.485, 0.456, 0.406]` and standard deviation
-   `[0.229, 0.224, 0.225]`.
-
-The trained checkpoint is not committed. Download it from the existing
-[checkpoint folder](https://drive.google.com/drive/folders/1WT4wW6LAY9GvKWYWWDPUh03mFhmbplzL?usp=drive_link)
+The trained `convnext_tiny.pth` checkpoint is 111,369,899 bytes and exceeds
+GitHub's normal file limit, so it is intentionally external. Download it from
+the existing [checkpoint folder](https://drive.google.com/drive/folders/1WT4wW6LAY9GvKWYWWDPUh03mFhmbplzL?usp=drive_link)
 and place it at:
 
 ```text
 models/grade/weights/convnext_tiny.pth
 ```
 
-Alternatively, pass its location explicitly:
-
 ```bash
-python inference/grade_inference.py \
-  --image path/to/fundus.jpg \
-  --checkpoint path/to/convnext_tiny.pth
-```
-
-The grade CLI prints the raw classifier logits, normalized probabilities, predicted
-grade, confidence, selected device, and saved Grad-CAM path:
-
-```text
-Image: path/to/fundus.jpg
-
-Classifier logits:
-[0.6179947, 5.0021138, 5.9145083, -5.1008306, -10.7142706]
-
-Classifier probabilities:
-[0.0035611, 0.2854864, 0.7109407, 0.0000117, 0.00000004]
-
-Predicted grade: 2
-Confidence: 0.710941
-Device: cuda:0
-
-Grad-CAM: inference/outputs/gradcam/fundus_gradcam.png
-```
-
-Useful options:
-
-```bash
-# Force CPU inference
-python inference/grade_inference.py --image fundus.jpg --device cpu
-
-# Select the directory used for Grad-CAM files
-python inference/grade_inference.py \
-  --image fundus.jpg \
-  --gradcam-output-dir path/to/gradcam
-
-# Skip Grad-CAM when only classifier output is needed
+python inference/grade_inference.py --image fundus.jpg
 python inference/grade_inference.py --image fundus.jpg --no-gradcam
 ```
-
-The reusable API is:
 
 ```python
 from models.grade.predict import predict_grade
 
-result = predict_grade("path/to/fundus.jpg")
+result = predict_grade("fundus.jpg")
 ```
 
-The returned dictionary has this structure:
+Grad-CAM overlays are generated under `inference/outputs/gradcam/` by default.
 
-```python
-{
-    "image_path": "/absolute/path/to/fundus.jpg",
-    "logits": [0.6179947, 5.0021138, 5.9145083, -5.1008306, -10.7142706],
-    "probabilities": [0.0035611, 0.2854864, 0.7109407, 0.0000117, 0.00000004],
-    "predicted_class": 2,
-    "predicted_grade": 2,
-    "confidence": 0.7109407,
-    "gradcam_path": "/absolute/path/to/fundus_gradcam.png",
-    "device": "cuda:0",
-}
-```
+## IQA: TOPIQ-NR
 
-`logits` are the unnormalized five-class network output. `probabilities` are computed
-once with `softmax(logits, dim=1)`, and the prediction is their argmax. Both vectors
-always follow grade order `[0, 1, 2, 3, 4]` and can be passed to future fusion code
-without parsing CLI output. Every returned value is JSON-serializable.
+The IQA package delegates to IQA-PyTorch (`pyiqa==0.1.16`) using metric ID
+`topiq_nr` and pretrained variant `cfanet_nr_koniq_res50`. The image path is
+passed directly to pyiqa; the wrapper does not add a resize, crop, normalization,
+threshold, or quality label.
 
-Grad-CAM is enabled by default and is saved under `inference/outputs/gradcam/`.
-Repeated predictions do not overwrite an existing file: numeric suffixes such as
-`fundus_gradcam_2.png` are added automatically. Python callers can use
-`save_gradcam=False` or pass `gradcam_output_dir=...`.
-
-### Grad-CAM interpretability
-
-`models/grade/gradcam.py` retains the original Gradient-weighted Class Activation
-Mapping implementation. It registers forward and backward hooks on the final ConvNeXt
-feature block (`model.model.features[-1][-1]`), pools class-specific gradients,
-combines them with saved activations, and normalizes the heatmap. The visualization
-can help inspect which areas influenced a grade, but it is not an independent
-diagnosis or a substitute for clinical review.
-
-## IQA model: pretrained TOPIQ-NR
-
-The IQA module uses the maintained [IQA-PyTorch (`pyiqa`)](https://github.com/chaofengc/IQA-PyTorch)
-implementation rather than recreating TOPIQ.
-
-- pyiqa metric identifier: `topiq_nr`
-- architecture/variant: `cfanet_nr_koniq_res50`
-- semantic backbone: ResNet-50
-- training dataset: KonIQ-10k natural images
-- checkpoint filename: `cfanet_nr_koniq_res50-9a73138b.pth`
-- returned value: raw TOPIQ-NR score; no quality threshold or label is applied
-
-Run one image from the repository root:
+The roughly 173 MiB TOPIQ checkpoint is downloaded and cached by pyiqa outside
+the repository rather than duplicated in `models/iqa/weights/`.
 
 ```bash
-python inference/iqa_inference.py --image path/to/fundus.jpg
+python inference/iqa_inference.py --image fundus.jpg
 ```
-
-Example output:
-
-```text
-Image: path/to/fundus.jpg
-Model: TOPIQ-NR
-Metric ID: topiq_nr
-IQA Score: 0.346042
-Device: cuda
-```
-
-Or reuse one loaded model across calls:
 
 ```python
-from models.iqa.model import IQAModel
 from models.iqa.predict import predict_iqa
 
-model = IQAModel()
-first = predict_iqa("first.jpg", model=model)
-second = predict_iqa("second.jpg", model=model)
+result = predict_iqa("fundus.jpg")
 ```
 
-### IQA preprocessing and pretrained weights
+## Lesion segmentation: UNet++ baseline
 
-The image path is passed directly to pyiqa. With pyiqa 0.1.16, its path pipeline
-opens the image with Pillow, converts it to RGB, and converts it to a batched float
-tensor in `[0,1]`. The default `topiq_nr` configuration preserves the input spatial
-resolution (no wrapper resize or crop). CFANet then applies the ImageNet normalization
-expected by its ResNet-50 semantic backbone. Do not add a second normalization step.
-
-On first use, pyiqa downloads the pretrained checkpoint automatically and normally
-caches it outside the repository under `~/.cache/torch/hub/pyiqa/`. The roughly
-173 MiB checkpoint is intentionally not duplicated in Git or in `models/iqa/weights/`.
-
-TOPIQ-NR was trained on natural images, not clinically validated fundus gradability
-data. Its raw score must be calibrated and validated before anyone derives a retinal
-quality decision or clinical workflow threshold from it.
-
-## Grade training artifacts
-
-Persistent grade evaluation artifacts are stored together under
-`models/grade/results/`. This includes `grade_training.csv`, `confusion_matrix.npy`,
-`confusion_matrix.png`, and the existing metric plots. These artifacts are not
-required for inference, and their contents were not altered during relocation.
+The selected lesion baseline is `models/lesion/weights/epoch_018_best_dice.pth`.
+It is copied unchanged from `C:\Users\ADMIN\Desktop\u_net_baseline\baseline` and
+has SHA-256:
 
 ```text
-models/grade/results/
-|-- 00_dashboard.png
-|-- 01_loss_curve.png
-|-- 02_accuracy_curve.png
-|-- 03_qwk_curve.png
-|-- 04_referable_dr_metrics.png
-|-- 05_per_class_auc.png
-|-- 06_macro_prf1.png
-|-- 07_per_class_f1.png
-|-- 08_learning_rate.png
-|-- 09_multiclass_auc.png
-|-- 10_referable_confusion_components.png
-|-- confusion_matrix.npy
-|-- confusion_matrix.png
-`-- grade_training.csv
+5af3ed1059b6bba3d2a4f666ff6d8c0dce3cf29da466c28de8bc4be21ec57d05
 ```
 
-The training history records 20 epochs of training/validation loss and accuracy,
-quadratic weighted kappa, referable-DR sensitivity/specificity/AUROC, confusion counts,
-multiclass metrics, per-class metrics, and learning rate.
+The preserved architecture uses a MobileNetV3-Large encoder, four-level nested
+UNet++ decoder, and four output channels. Channel order is exactly:
 
-| True / Predicted | Grade 0 | Grade 1 | Grade 2 | Grade 3 | Grade 4 |
-| ---------------- | ------- | ------- | ------- | ------- | ------- |
-| Grade 0          | 1416    | 53      | 47      | 1       | 3       |
-| Grade 1          | 130     | 1062    | 99      | 4       | 10      |
-| Grade 2          | 115     | 134     | 1040    | 73      | 37      |
-| Grade 3          | 0       | 9       | 39      | 1200    | 30      |
-| Grade 4          | 4       | 8       | 49      | 33      | 1200    |
+```text
+0 = MA, 1 = HE, 2 = EX, 3 = SE
+```
 
-Rows are true DR grades and columns are predicted grades, in unchanged class order
-0 through 4. The model outputs logits; the reusable prediction API returns softmax
-probabilities alongside the selected grade index.
+Preprocessing remains RGB conversion, bilinear resize to 768x768, conversion to
+`[0,1]`, and ImageNet normalization. The default inference threshold remains
+0.5. The checkpoint was saved at epoch 18 and loads with strict state-dict
+matching.
+
+Checkpoint-recorded validation metrics at threshold 0.5 are Dice 0.601242, IoU
+0.429840, AUPRC 0.662660, AUROC 0.992029, sensitivity 0.738866, specificity
+0.998657, and precision 0.506837. Best-threshold Dice is 0.634498 at threshold
+0.9. The full copied history and metadata are in `Results/lesion_results/`.
+
+```bash
+python inference/lesion_inference.py --image fundus.jpg
+```
+
+```python
+from models.lesion.predict import predict_lesions
+
+result = predict_lesions("fundus.jpg")
+ma_probability = result["lesions"]["MA"]["probability"]
+```
+
+`models/lesion/dataset.py` preserves the external DDR/IDRiD dataset adapter, but
+the dataset index, images, and masks are not committed.
+
+## Restoration: NAFNet width-32
+
+The required official NAFNet architecture is vendored under
+`models/restoration/nafnet/` from `megvii-research/NAFNet` commit
+`2b4af71ebe098a92a75910c233a3965a3e93ede4`. Attribution headers and the upstream
+Apache 2.0 license are retained.
+
+The wrapper uses width 32, encoder blocks `[2, 2, 4, 8]`, 12 middle blocks, and
+decoder blocks `[2, 2, 2, 2]`. Inference uses full-resolution RGB `[0,1]` input,
+no ImageNet normalization, internal padding to a multiple of 16, and exact
+cropping back to the input size.
+
+Place a retinal-trained checkpoint at:
+
+```text
+models/restoration/weights/nafnet_retina_width32.pth
+```
+
+The official generic `NAFNet-SIDD-width32.pth` is 116,861,841 bytes and is not
+committed. It may be passed explicitly for architecture/inference testing, but
+it is a SIDD denoising checkpoint and must not be described as retinal-trained.
+See `models/restoration/README.md` for checkpoint details.
+
+```bash
+python inference/restoration_inference.py \
+  --image degraded.jpg \
+  --checkpoint path/to/NAFNet-SIDD-width32.pth
+```
+
+```python
+from models.restoration.predict import restore_image
+
+result = restore_image("degraded.jpg", checkpoint="path/to/checkpoint.pth")
+```
+
+Restored images are written under `inference/outputs/restoration/`; persistent
+PSNR/SSIM summaries and comparison artifacts belong under
+`Results/restoration_results/`.
+
+## Persistent results
+
+```text
+Results/
+|-- grade_results/
+|   |-- grade_training.csv
+|   |-- confusion_matrix.npy
+|   |-- confusion_matrix.png
+|   `-- 00_dashboard.png ... 10_referable_confusion_components.png
+|-- iqa_results/
+|-- lesion_results/
+|   |-- training_metrics.csv
+|   |-- evaluation_metrics.json
+|   |-- best_confusion_matrix.npy
+|   `-- baseline_info.txt
+`-- restoration_results/
+```
+
+No model package contains a results directory. Persistent results go in
+`Results/<model>_results/`; outputs created by a prediction go in
+`inference/outputs/<model>/`.
