@@ -106,6 +106,25 @@ python -m pip install -r requirements.txt
 All model wrappers automatically use CUDA when available and otherwise use CPU.
 The CLIs accept `--device cpu` or `--device cuda`.
 
+## Offline checkpoint bundle
+
+All inference loaders resolve weights from a single `checkpoint/` directory at
+the repository root. Set `DR_CHECKPOINT_DIR` to use the bundle from another
+location; the environment variable must point at the directory containing the
+`grade/`, `lesion/`, `iqa/`, and `restoration/` subdirectories.
+
+The bundle is intentionally kept out of Git. Extract `checkpoint_bundle.zip`
+beside this README, or configure its location before importing any model module:
+
+```powershell
+$env:DR_CHECKPOINT_DIR = 'C:\path\to\checkpoint'
+```
+
+No inference loader downloads model weights. Grade and lesion instantiate their
+Torchvision backbones without pretrained initialization, TOPIQ disables both
+pyiqa and timm pretraining before a strict local load, and the vendored NAFNet
+architecture loads its local checkpoint directly.
+
 ## Grade: five-class ConvNeXt
 
 `models/grade/model.py` retains the historical `Convextnet` class: a Torchvision
@@ -117,12 +136,10 @@ ImageNet normalization. `predict_grade` returns the five logits, five softmax
 probabilities, selected grade, confidence, and optional saved Grad-CAM path.
 
 The trained `convnext_tiny.pth` checkpoint is 111,369,899 bytes and exceeds
-GitHub's normal file limit, so it is intentionally external. Download it from
-the existing [checkpoint folder](https://drive.google.com/drive/folders/1WT4wW6LAY9GvKWYWWDPUh03mFhmbplzL?usp=drive_link)
-and place it at:
+GitHub's normal file limit, so it is supplied in the offline bundle at:
 
 ```text
-models/grade/weights/convnext_tiny.pth
+checkpoint/grade/convnext_tiny.pth
 ```
 
 ```bash
@@ -145,8 +162,11 @@ The IQA package delegates to IQA-PyTorch (`pyiqa==0.1.16`) using metric ID
 passed directly to pyiqa; the wrapper does not add a resize, crop, normalization,
 threshold, or quality label.
 
-The roughly 173 MiB TOPIQ checkpoint is downloaded and cached by pyiqa outside
-the repository rather than duplicated in `models/iqa/weights/`.
+The exact TOPIQ checkpoint is bundled at
+`checkpoint/iqa/cfanet_nr_koniq_res50-9a73138b.pth`. The wrapper constructs
+CFANet and its ResNet-50 backbone without pretrained initialization, then uses
+pyiqa's strict local state-dict loader. It never delegates checkpoint discovery
+or downloading to pyiqa.
 
 ```bash
 python inference/iqa_inference.py --image fundus.jpg
@@ -160,9 +180,9 @@ result = predict_iqa("fundus.jpg")
 
 ## Lesion segmentation: UNet++ baseline
 
-The selected lesion baseline is `models/lesion/weights/epoch_018_best_dice.pth`.
-It is copied unchanged from `C:\Users\ADMIN\Desktop\u_net_baseline\baseline` and
-has SHA-256:
+The selected lesion baseline is
+`checkpoint/lesion/epoch_018_best_dice.pth`. It is copied unchanged and has
+SHA-256:
 
 ```text
 5af3ed1059b6bba3d2a4f666ff6d8c0dce3cf29da466c28de8bc4be21ec57d05
@@ -193,45 +213,47 @@ python inference/lesion_inference.py --image fundus.jpg
 from models.lesion.predict import predict_lesions
 
 result = predict_lesions("fundus.jpg")
-ma_probability = result["lesions"]["MA"]["probability"]
+ma_regions = result["lesions"]["MA"]["regions"]
 ```
 
 `models/lesion/dataset.py` preserves the external DDR/IDRiD dataset adapter, but
-the dataset index, images, and masks are not committed.
+the dataset index, images, and masks are not committed. Inference additionally
+saves original-resolution numeric probability maps, binary masks, connected
+regions, estimated coordinates, bounding boxes, center points, per-class
+segmentation Grad-CAM, a combined overlay, an analysis dashboard, and JSON
+metadata. See `models/lesion/README.md` for the exact output contract.
 
 ## Restoration: NAFNet width-32
 
 The required official NAFNet architecture is vendored under
 `models/restoration/nafnet/` from `megvii-research/NAFNet` commit
 `2b4af71ebe098a92a75910c233a3965a3e93ede4`. Attribution headers and the upstream
-Apache 2.0 license are retained.
+MIT license are retained; BasicSR-derived portions also retain Apache 2.0 terms.
 
 The wrapper uses width 32, encoder blocks `[2, 2, 4, 8]`, 12 middle blocks, and
 decoder blocks `[2, 2, 2, 2]`. Inference uses full-resolution RGB `[0,1]` input,
 no ImageNet normalization, internal padding to a multiple of 16, and exact
 cropping back to the input size.
 
-Place a retinal-trained checkpoint at:
+The current offline bundle contains:
 
 ```text
-models/restoration/weights/nafnet_retina_width32.pth
+checkpoint/restoration/NAFNet-SIDD-width32.pth
 ```
 
-The official generic `NAFNet-SIDD-width32.pth` is 116,861,841 bytes and is not
-committed. It may be passed explicitly for architecture/inference testing, but
-it is a SIDD denoising checkpoint and must not be described as retinal-trained.
-See `models/restoration/README.md` for checkpoint details.
+This 116,861,841-byte official checkpoint is trained for SIDD denoising. It is
+the current default because no retinal-fine-tuned NAFNet checkpoint is present;
+it must not be described as retinal-trained. See `models/restoration/README.md`
+for checkpoint details.
 
 ```bash
-python inference/restoration_inference.py \
-  --image degraded.jpg \
-  --checkpoint path/to/NAFNet-SIDD-width32.pth
+python inference/restoration_inference.py --image degraded.jpg
 ```
 
 ```python
 from models.restoration.predict import restore_image
 
-result = restore_image("degraded.jpg", checkpoint="path/to/checkpoint.pth")
+result = restore_image("degraded.jpg")
 ```
 
 Restored images are written under `inference/outputs/restoration/`; persistent

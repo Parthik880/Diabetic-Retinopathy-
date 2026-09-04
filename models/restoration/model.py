@@ -7,11 +7,13 @@ from pathlib import Path
 
 import torch
 
+from models.checkpoints import checkpoint_path
+
 from .nafnet import NAFNet
 
 
-DEFAULT_CHECKPOINT_PATH = (
-    Path(__file__).resolve().parent / "weights" / "nafnet_retina_width32.pth"
+DEFAULT_CHECKPOINT_PATH = checkpoint_path(
+    "restoration", "NAFNet-SIDD-width32.pth"
 )
 NAFNET_CONFIG = {
     "img_channel": 3,
@@ -32,7 +34,7 @@ def resolve_device(device: str | torch.device | None = None) -> torch.device:
 
 
 def build_restoration_model() -> NAFNet:
-    """Construct the unchanged official SIDD/retina NAFNet-width32 network."""
+    """Construct the unchanged official NAFNet-width32 network."""
     return NAFNet(**NAFNET_CONFIG)
 
 
