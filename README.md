@@ -116,6 +116,9 @@ location; the environment variable must point at the directory containing the
 The bundle is intentionally kept out of Git. Extract `checkpoint_bundle.zip`
 beside this README, or configure its location before importing any model module:
 
+Download the complete checkpoint bundle from the
+[shared Google Drive folder](https://drive.google.com/drive/folders/1xy_zgu9o5N0Ou0waAnVj-3D4HtDl784v?usp=sharing).
+
 ```powershell
 $env:DR_CHECKPOINT_DIR = 'C:\path\to\checkpoint'
 ```
