@@ -1,4 +1,4 @@
-# Diabetic Retinopathy Models
+# Diabetic Retinopathy Model Inference
 
 This repository provides separate, reusable model packages for diabetic-retinopathy
 grading and no-reference image-quality assessment (IQA). Model construction and
@@ -75,6 +75,40 @@ python inference/grade_inference.py \
   --checkpoint path/to/convnext_tiny.pth
 ```
 
+The grade CLI prints the raw classifier logits, normalized probabilities, predicted
+grade, confidence, selected device, and saved Grad-CAM path:
+
+```text
+Image: path/to/fundus.jpg
+
+Classifier logits:
+[0.6179947, 5.0021138, 5.9145083, -5.1008306, -10.7142706]
+
+Classifier probabilities:
+[0.0035611, 0.2854864, 0.7109407, 0.0000117, 0.00000004]
+
+Predicted grade: 2
+Confidence: 0.710941
+Device: cuda:0
+
+Grad-CAM: inference/outputs/gradcam/fundus_gradcam.png
+```
+
+Useful options:
+
+```bash
+# Force CPU inference
+python inference/grade_inference.py --image fundus.jpg --device cpu
+
+# Select the directory used for Grad-CAM files
+python inference/grade_inference.py \
+  --image fundus.jpg \
+  --gradcam-output-dir path/to/gradcam
+
+# Skip Grad-CAM when only classifier output is needed
+python inference/grade_inference.py --image fundus.jpg --no-gradcam
+```
+
 The reusable API is:
 
 ```python
@@ -83,11 +117,30 @@ from models.grade.predict import predict_grade
 result = predict_grade("path/to/fundus.jpg")
 ```
 
-The result contains separate five-value `logits` and `probabilities` lists, the
-argmax-derived `predicted_class`/`predicted_grade`, confidence, and a saved Grad-CAM
-path. Every value is JSON-serializable. Grad-CAM is enabled by default and is saved
-under `inference/outputs/gradcam/`. Use `--gradcam-output-dir` to select another
-directory or `--no-gradcam` to skip it.
+The returned dictionary has this structure:
+
+```python
+{
+    "image_path": "/absolute/path/to/fundus.jpg",
+    "logits": [0.6179947, 5.0021138, 5.9145083, -5.1008306, -10.7142706],
+    "probabilities": [0.0035611, 0.2854864, 0.7109407, 0.0000117, 0.00000004],
+    "predicted_class": 2,
+    "predicted_grade": 2,
+    "confidence": 0.7109407,
+    "gradcam_path": "/absolute/path/to/fundus_gradcam.png",
+    "device": "cuda:0",
+}
+```
+
+`logits` are the unnormalized five-class network output. `probabilities` are computed
+once with `softmax(logits, dim=1)`, and the prediction is their argmax. Both vectors
+always follow grade order `[0, 1, 2, 3, 4]` and can be passed to future fusion code
+without parsing CLI output. Every returned value is JSON-serializable.
+
+Grad-CAM is enabled by default and is saved under `inference/outputs/gradcam/`.
+Repeated predictions do not overwrite an existing file: numeric suffixes such as
+`fundus_gradcam_2.png` are added automatically. Python callers can use
+`save_gradcam=False` or pass `gradcam_output_dir=...`.
 
 ### Grad-CAM interpretability
 
@@ -114,6 +167,16 @@ Run one image from the repository root:
 
 ```bash
 python inference/iqa_inference.py --image path/to/fundus.jpg
+```
+
+Example output:
+
+```text
+Image: path/to/fundus.jpg
+Model: TOPIQ-NR
+Metric ID: topiq_nr
+IQA Score: 0.346042
+Device: cuda
 ```
 
 Or reuse one loaded model across calls:
@@ -149,6 +212,24 @@ Persistent grade evaluation artifacts are stored together under
 `models/grade/results/`. This includes `grade_training.csv`, `confusion_matrix.npy`,
 `confusion_matrix.png`, and the existing metric plots. These artifacts are not
 required for inference, and their contents were not altered during relocation.
+
+```text
+models/grade/results/
+|-- 00_dashboard.png
+|-- 01_loss_curve.png
+|-- 02_accuracy_curve.png
+|-- 03_qwk_curve.png
+|-- 04_referable_dr_metrics.png
+|-- 05_per_class_auc.png
+|-- 06_macro_prf1.png
+|-- 07_per_class_f1.png
+|-- 08_learning_rate.png
+|-- 09_multiclass_auc.png
+|-- 10_referable_confusion_components.png
+|-- confusion_matrix.npy
+|-- confusion_matrix.png
+`-- grade_training.csv
+```
 
 The training history records 20 epochs of training/validation loss and accuracy,
 quadratic weighted kappa, referable-DR sensitivity/specificity/AUROC, confusion counts,
