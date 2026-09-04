@@ -3,3 +3,4 @@ torchvision
 numpy
 matplotlib
 Pillow
+pyiqa==0.1.16
