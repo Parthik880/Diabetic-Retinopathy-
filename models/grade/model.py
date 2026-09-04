@@ -8,9 +8,10 @@ from pathlib import Path
 import torch
 from torch import nn
 
-DEFAULT_CHECKPOINT_PATH = (
-    Path(__file__).resolve().parent / "weights" / "convnext_tiny.pth"
-)
+from models.checkpoints import checkpoint_path
+
+
+DEFAULT_CHECKPOINT_PATH = checkpoint_path("grade", "convnext_tiny.pth")
 
 
 def resolve_device(device: str | torch.device | None = None) -> torch.device:
@@ -111,7 +112,8 @@ def load_grade_model(
     if not path.is_file():
         raise FileNotFoundError(
             f"Grade checkpoint not found: {path}. "
-            "Download the trained checkpoint described in README.md or pass --checkpoint."
+            "Extract the offline checkpoint bundle, set DR_CHECKPOINT_DIR, "
+            "or pass --checkpoint."
         )
 
     resolved_device = resolve_device(device)
