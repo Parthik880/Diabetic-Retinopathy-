@@ -1,6 +1,12 @@
-"""TOPIQ image-quality model and reusable prediction API."""
+"""EfficientNet image-quality model and reusable prediction API."""
 
-from .model import METRIC_ID, MODEL_LABEL, IQAModel
+from .inference import EfficientNetIQAService
+from .model import IQA_CLASS_NAMES, METRIC_ID, MODEL_LABEL, EfficientNetIQA
 from .predict import predict_iqa
 
-__all__ = ["METRIC_ID", "MODEL_LABEL", "IQAModel", "predict_iqa"]
+IQAModel = EfficientNetIQAService
+
+__all__ = [
+    "EfficientNetIQA", "EfficientNetIQAService", "IQA_CLASS_NAMES",
+    "IQAModel", "METRIC_ID", "MODEL_LABEL", "predict_iqa",
+]
