@@ -15,10 +15,11 @@ from torchvision.models import (
     mobilenet_v3_large,
 )
 
-from models.checkpoints import checkpoint_path
 
-
-DEFAULT_CHECKPOINT_PATH = checkpoint_path("lesion", "epoch_018_best_dice.pth")
+DEFAULT_CHECKPOINT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "model" / "checkpoints" / "epoch_018_best_dice.pth"
+)
 DEFAULT_BACKBONE = "mobilenet_v3_large"
 NUM_LESION_CLASSES = 4
 
