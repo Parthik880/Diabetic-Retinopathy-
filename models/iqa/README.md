@@ -19,18 +19,18 @@ Reject → Recapture
 
 | ID | Class | Action |
 |---:|---|---|
-| `0` | **Reject** | Ask user to recapture image |
+| `2` | **Reject** | Ask user to recapture image |
 | `1` | **Usable** | Enhance → re-check / continue |
-| `2` | **Good** | Send directly to DR classifier |
+| `0` | **Good** | Send directly to DR classifier |
 
 ### Important
 
 **Do not change the class mapping.**
 
 ```python
-0 = Reject
+0 = Good
 1 = Usable
-2 = Good
+2 = Reject
 ```
 
 ## 3. Model
