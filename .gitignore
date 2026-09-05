@@ -20,7 +20,7 @@ models/lesion/idrid+ddr_lesion.csv
 
 # Only the selected, GitHub-sized trained checkpoints are versioned.
 *.pth
-!models/lesion/weights/epoch_018_best_dice.pth
+!model/checkpoints/epoch_018_best_dice.pth
 !models/grade/weights/.gitkeep
 !model/checkpoints/final_efficientnet_iqa.pth
 !models/restoration/weights/.gitkeep

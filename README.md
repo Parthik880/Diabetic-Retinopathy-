@@ -68,8 +68,7 @@ The generic SIDD NAFNet checkpoint is not a clinically validated retinal model.
 |   |-- lesion/
 |   |   |-- model.py
 |   |   |-- predict.py
-|   |   |-- dataset.py
-|   |   `-- weights/epoch_018_best_dice.pth
+|   |   `-- dataset.py
 |   `-- restoration/
 |       |-- model.py
 |       |-- predict.py
@@ -91,6 +90,7 @@ The generic SIDD NAFNet checkpoint is not a clinically validated retinal model.
 |   |-- lesion_results/
 |   `-- restoration_results/
 |-- model/checkpoints/final_efficientnet_iqa.pth
+|-- model/checkpoints/epoch_018_best_dice.pth
 |-- test_iqa.py
 |-- requirements.txt
 `-- .gitignore
@@ -110,10 +110,10 @@ The CLIs accept `--device cpu` or `--device cuda`.
 
 ## Offline checkpoint bundle
 
-Grade, lesion, and restoration loaders resolve weights from a single `checkpoint/` directory at
+Grade and restoration loaders resolve weights from a single `checkpoint/` directory at
 the repository root. Set `DR_CHECKPOINT_DIR` to use the bundle from another
 location; the environment variable must point at the directory containing the
-`grade/`, `lesion/`, and `restoration/` subdirectories.
+`grade/` and `restoration/` subdirectories.
 
 The bundle is intentionally kept out of Git. Extract `checkpoint_bundle.zip`
 beside this README, or configure its location before importing any model module:
@@ -127,7 +127,8 @@ $env:DR_CHECKPOINT_DIR = 'C:\path\to\checkpoint'
 
 Grade and lesion instantiate their Torchvision backbones without pretrained
 initialization, and the vendored NAFNet architecture loads its local checkpoint
-directly. IQA uses the committed MLP checkpoint and Torchvision's ImageNet
+directly. Lesion uses its committed checkpoint under `model/checkpoints/`.
+IQA uses the committed MLP checkpoint and Torchvision's ImageNet
 EfficientNet-B0 weights. Torchvision downloads those backbone weights on first
 use if absent from its cache; prepopulate the Torch cache for offline operation.
 
@@ -199,7 +200,7 @@ place of the former scalar score. No training or calibration runs at inference.
 ## Lesion segmentation: UNet++ baseline
 
 The selected lesion baseline is
-`checkpoint/lesion/epoch_018_best_dice.pth`. It is copied unchanged and has
+`model/checkpoints/epoch_018_best_dice.pth`. It is copied unchanged and has
 SHA-256:
 
 ```text

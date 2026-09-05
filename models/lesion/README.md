@@ -98,3 +98,52 @@ result = predict_lesions(
     max_regions_per_class=None,
 )
 ```
+
+## External TIFF annotations
+
+Set DR_LESION_CSV to the external CSV before importing the dataset, or pass
+csv_path explicitly. Required columns are image_path, mask_path, lesion_class,
+source_dataset, and original_split. Relative paths resolve against the CSV
+directory. The CSV is the authoritative mapping; row order is never used to
+match files. Each image may have a separate binary annotation for MA, HE, EX,
+and SE. An absent class annotation is not assumed to be a negative label.
+
+DDR TIFFs use grayscale (L) values 0/255; IDRiD TIFFs use palette (P) indices
+0/1. The reader inspects the original pixel values without RGB conversion.
+Only binary 0/1 or 0/255 annotations are supported by this per-lesion adapter;
+multi-class labels require an explicit mapping and are rejected instead of
+being silently merged. Multi-page and unknown multichannel masks are also rejected. The inspected
+IDRiD_81_EX.tif exception encodes foreground as opaque red and background as
+opaque black. Only that explicit RGBA encoding is supported: red becomes the
+binary target after validating green/blue are zero and alpha is 255 everywhere.
+The original file is never changed.
+
+The adapter rejects missing files, duplicate rows, conflicting image/class
+assignments, unreadable TIFFs, and original image/mask dimension mismatches.
+Fundus images resize bilinearly; masks resize with nearest-neighbor only.
+ImageNet normalization applies exclusively to the retinal image.
+The existing tuple (image, mask, lesion_class) remains the default.
+return_metadata=True returns image, mask, lesion_class, image_path, mask_path.
+
+Training/validation use the image as the network input and the corresponding
+annotation as the supervision target for its lesion channel. The mask tensor is
+[1,768,768]; the selected model produces four lesion channels. Annotation TIFFs
+are never supplied to IQA or required for lesion prediction on new images.
+No training is performed by the verification command.
+
+```powershell
+python inference/verify_lesion_annotations.py --csv C:\path\to\lesion.csv --report audit.json --overlay lesion_annotation_check.png
+python -m unittest test_lesion_dataset -v
+```
+
+The verifier checks every CSV pair, prints original shapes, modes and unique
+values for up to five distinct images per source dataset, and optionally saves
+one side-by-side image/annotation overlay. Path/mapping errors fail at dataset
+construction; per-file decoding/value/dimension failures are listed in the
+audit and return a nonzero exit code. Files absent from the CSV are outside
+this audit's scope.
+
+Large images, TIFF annotations, and dataset CSVs remain external to Git.
+The unchanged selected checkpoint is now committed at
+model/checkpoints/epoch_018_best_dice.pth; --checkpoint still accepts an
+explicit alternative path.
