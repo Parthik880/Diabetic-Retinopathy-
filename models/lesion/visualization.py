@@ -23,7 +23,9 @@ LESION_COLORS = {
 
 def save_binary_mask(mask: np.ndarray, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(np.asarray(mask, dtype=np.uint8) * 255).save(path)
+    Image.fromarray(np.asarray(mask, dtype=np.uint8) * 255).save(
+        path, format="TIFF", compression="tiff_deflate"
+    )
 
 
 def save_probability_map(probability_map: np.ndarray, lesion: str, path: Path) -> None:

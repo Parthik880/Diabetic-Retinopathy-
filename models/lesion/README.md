@@ -62,7 +62,7 @@ Grad-CAM -> secondary feature-attribution visualization
 The default root is `inference/outputs/lesion/`:
 
 ```text
-masks/<image>_MA_mask.png ... <image>_SE_mask.png
+masks/<image>_MA_mask.tiff ... <image>_SE_mask.tiff
 probability_maps/<image>_MA_probability.png
 probability_maps/<image>_MA_probability.npy
 gradcam/<image>_MA_gradcam.png ... <image>_SE_gradcam.png
@@ -73,6 +73,7 @@ json/<image>_lesions.json
 <image>_analysis.png
 ```
 
+Binary masks are single-channel TIFFs with 0 background and 255 foreground.
 The NPY files retain numeric probability maps; PNGs are visual heatmaps. The
 combined overlay, boxes, center points, and dashboard are derived from filtered
 predicted masks. All returned Python metadata is JSON-serializable.

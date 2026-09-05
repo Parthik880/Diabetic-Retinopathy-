@@ -160,7 +160,7 @@ def predict_lesions(
             )
             filtered_masks[lesion] = filtered_mask
             total_area = int(filtered_mask.sum())
-            mask_path = destination / "masks" / f"{run_stem}_{lesion}_mask.png"
+            mask_path = destination / "masks" / f"{run_stem}_{lesion}_mask.tiff"
             save_binary_mask(filtered_mask, mask_path)
 
             probability_map_path = None
