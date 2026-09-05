@@ -41,15 +41,15 @@ Grade classifier
 DR grade + lesion output + explanation
 ```
 
-- **IQA** measures input image quality with pretrained TOPIQ-NR.
+- **IQA** classifies image quality as Good, Usable, or Reject using EfficientNet-B0 + MLP.
 - **NAFNet** restores a degraded image before quality is checked again.
 - **UNet++** segments microaneurysms (MA), hemorrhages (HE), hard exudates
   (EX), and soft exudates (SE).
 - **Grade model** classifies diabetic-retinopathy severity into grades 0-4 and
   can save a Grad-CAM explanation.
 
-The IQA score is raw and no quality threshold is imposed here. TOPIQ-NR and the
-generic SIDD NAFNet checkpoint are not clinically validated retinal models.
+IQA returns temperature-calibrated class probabilities without score thresholds.
+The generic SIDD NAFNet checkpoint is not a clinically validated retinal model.
 
 ## Repository structure
 
@@ -63,8 +63,8 @@ generic SIDD NAFNet checkpoint are not clinically validated retinal models.
 |   |   `-- weights/
 |   |-- iqa/
 |   |   |-- model.py
-|   |   |-- predict.py
-|   |   `-- weights/
+|   |   |-- inference.py
+|   |   `-- predict.py
 |   |-- lesion/
 |   |   |-- model.py
 |   |   |-- predict.py
@@ -90,6 +90,8 @@ generic SIDD NAFNet checkpoint are not clinically validated retinal models.
 |   |-- iqa_results/
 |   |-- lesion_results/
 |   `-- restoration_results/
+|-- model/checkpoints/final_efficientnet_iqa.pth
+|-- test_iqa.py
 |-- requirements.txt
 `-- .gitignore
 ```
@@ -108,10 +110,10 @@ The CLIs accept `--device cpu` or `--device cuda`.
 
 ## Offline checkpoint bundle
 
-All inference loaders resolve weights from a single `checkpoint/` directory at
+Grade, lesion, and restoration loaders resolve weights from a single `checkpoint/` directory at
 the repository root. Set `DR_CHECKPOINT_DIR` to use the bundle from another
 location; the environment variable must point at the directory containing the
-`grade/`, `lesion/`, `iqa/`, and `restoration/` subdirectories.
+`grade/`, `lesion/`, and `restoration/` subdirectories.
 
 The bundle is intentionally kept out of Git. Extract `checkpoint_bundle.zip`
 beside this README, or configure its location before importing any model module:
@@ -123,10 +125,11 @@ Download the complete checkpoint bundle from the
 $env:DR_CHECKPOINT_DIR = 'C:\path\to\checkpoint'
 ```
 
-No inference loader downloads model weights. Grade and lesion instantiate their
-Torchvision backbones without pretrained initialization, TOPIQ disables both
-pyiqa and timm pretraining before a strict local load, and the vendored NAFNet
-architecture loads its local checkpoint directly.
+Grade and lesion instantiate their Torchvision backbones without pretrained
+initialization, and the vendored NAFNet architecture loads its local checkpoint
+directly. IQA uses the committed MLP checkpoint and Torchvision's ImageNet
+EfficientNet-B0 weights. Torchvision downloads those backbone weights on first
+use if absent from its cache; prepopulate the Torch cache for offline operation.
 
 ## Grade: five-class ConvNeXt
 
@@ -158,28 +161,40 @@ result = predict_grade("fundus.jpg")
 
 Grad-CAM overlays are generated under `inference/outputs/gradcam/` by default.
 
-## IQA: TOPIQ-NR
+## IQA: EfficientNet-B0 + trained MLP
 
-The IQA package delegates to IQA-PyTorch (`pyiqa==0.1.16`) using metric ID
-`topiq_nr` and pretrained variant `cfanet_nr_koniq_res50`. The image path is
-passed directly to pyiqa; the wrapper does not add a resize, crop, normalization,
-threshold, or quality label.
+The frozen ImageNet-pretrained EfficientNet-B0 features and average pooling
+produce 1280 features. The trained head is Linear(1280,128), ReLU, Dropout(0.30),
+Linear(128,3), preserving its `network` state-dict keys. It loads strictly from
+`model/checkpoints/final_efficientnet_iqa.pth` (660,659 bytes).
+Checkpoint SHA256: `c9e6798682916e55dd327901854dfb9521dcf17408956b4238a9d3f922d1e426`.
 
-The exact TOPIQ checkpoint is bundled at
-`checkpoint/iqa/cfanet_nr_koniq_res50-9a73138b.pth`. The wrapper constructs
-CFANet and its ResNet-50 backbone without pretrained initialization, then uses
-pyiqa's strict local state-dict loader. It never delegates checkpoint discovery
-or downloading to pyiqa.
+Images convert to RGB, resize directly to 224x224, convert to tensors, and use
+ImageNet normalization (mean 0.485/0.456/0.406, std 0.229/0.224/0.225).
+Logits divide by the saved temperature 1.0064263343811035 before softmax.
+Class IDs are 0=Good, 1=Usable, 2=Reject. Confidence is the largest calibrated
+probability. There is no threshold conversion or alternative IQA fallback.
 
 ```bash
 python inference/iqa_inference.py --image fundus.jpg
+python test_iqa.py --image fundus.jpg --device cpu
 ```
 
 ```python
-from models.iqa.predict import predict_iqa
+from models.iqa import EfficientNetIQAService, predict_iqa
 
-result = predict_iqa("fundus.jpg")
+# Construct once during application startup and reuse for every image.
+service = EfficientNetIQAService()
+result = predict_iqa("fundus.jpg", model=service)
+# For uploads/camera PIL images: result = service.predict(image)
+print(result["quality"], result["confidence"], result["probabilities"])
 ```
+
+The existing `IQAModel(checkpoint=..., device=...)` import and `predict_iqa`
+arguments remain supported. Calls without an explicit service cache the model
+per checkpoint/device. Path predictions retain image/model/checkpoint/device
+metadata and now return class_id, quality, confidence, and probabilities in
+place of the former scalar score. No training or calibration runs at inference.
 
 ## Lesion segmentation: UNet++ baseline
 

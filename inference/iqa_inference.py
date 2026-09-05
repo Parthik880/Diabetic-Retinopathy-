@@ -1,4 +1,4 @@
-"""Command-line inference for raw pretrained TOPIQ-NR scores."""
+"""Command-line inference for calibrated EfficientNet image quality."""
 
 from __future__ import annotations
 
@@ -15,14 +15,14 @@ from models.iqa.predict import predict_iqa
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Predict a raw TOPIQ-NR image-quality score."
+        description="Classify image quality as Good, Usable, or Reject."
     )
     parser.add_argument("--image", required=True, type=Path, help="path to one image")
     parser.add_argument(
         "--checkpoint",
         type=Path,
         default=DEFAULT_CHECKPOINT_PATH,
-        help=f"local TOPIQ checkpoint (default: {DEFAULT_CHECKPOINT_PATH})",
+        help=f"trained IQA checkpoint (default: {DEFAULT_CHECKPOINT_PATH})",
     )
     parser.add_argument(
         "--device",
@@ -48,7 +48,9 @@ def main() -> int:
     print(f"Model: {result['metric']}")
     print(f"Metric ID: {result['metric_id']}")
     print(f"Checkpoint: {result['checkpoint_path']}")
-    print(f"IQA Score: {result['score']:.6f}")
+    print(f"Predicted quality: {result['quality']}")
+    print(f"Confidence: {result['confidence']:.6f}")
+    print(f"Probabilities: {result['probabilities']}")
     print(f"Device: {result['device']}")
     return 0
 

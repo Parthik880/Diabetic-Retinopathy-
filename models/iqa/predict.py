@@ -1,14 +1,24 @@
-"""Validation and reusable single-image TOPIQ-NR prediction."""
+"""Validation and reusable single-image quality classification."""
 
 from __future__ import annotations
 
-import math
+from functools import lru_cache
+from threading import Lock
 from pathlib import Path
 
 import torch
 from PIL import Image, UnidentifiedImageError
 
-from .model import DEFAULT_CHECKPOINT_PATH, METRIC_ID, MODEL_LABEL, IQAModel
+from .model import DEFAULT_CHECKPOINT_PATH, METRIC_ID, MODEL_LABEL
+from .inference import EfficientNetIQAService
+
+IQAModel = EfficientNetIQAService
+_MODEL_LOCK = Lock()
+
+
+@lru_cache(maxsize=4)
+def _cached_model(checkpoint: str, device: str) -> EfficientNetIQAService:
+    return EfficientNetIQAService(checkpoint_path=checkpoint, device=device)
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 
@@ -36,30 +46,25 @@ def predict_iqa(
     checkpoint_path: str | Path = DEFAULT_CHECKPOINT_PATH,
     device: str | torch.device | None = None,
 ) -> dict:
-    """Return the raw TOPIQ-NR score for one image without thresholds."""
+    """Return calibrated classes; reuse an explicit service or a cached model."""
     path = validate_image(image_path)
-    iqa_model = (
-        model
-        if model is not None
-        else IQAModel(checkpoint=checkpoint_path, device=device)
-    )
-
-    with torch.inference_mode():
-        output = iqa_model.metric(str(path))
-    if output.numel() != 1:
-        raise RuntimeError(
-            f"Expected one TOPIQ score, received shape {tuple(output.shape)}"
+    if model is None:
+        selected_device = torch.device(
+            device if device is not None else
+            ("cuda" if torch.cuda.is_available() else "cpu")
         )
-
-    score = float(output.detach().cpu().item())
-    if not math.isfinite(score):
-        raise RuntimeError(f"TOPIQ returned a non-finite score: {score}")
+        with _MODEL_LOCK:
+            model = _cached_model(
+                str(Path(checkpoint_path).expanduser().resolve()), str(selected_device)
+            )
+    with Image.open(path) as image:
+        prediction = model.predict(image)
 
     return {
         "image": str(path),
-        "score": score,
+        **prediction,
         "metric": MODEL_LABEL,
         "metric_id": METRIC_ID,
-        "checkpoint_path": str(iqa_model.checkpoint_path),
-        "device": str(iqa_model.device),
+        "checkpoint_path": str(model.checkpoint_path),
+        "device": str(model.device),
     }
