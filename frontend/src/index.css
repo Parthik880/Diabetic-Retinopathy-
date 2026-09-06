@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #005227;
+  --color-primary-container: #006d36;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #91eca7;
+  --color-primary-fixed: #9bf6b1;
+  --color-primary-fixed-dim: #80da96;
+  --color-on-primary-fixed: #00210c;
+  --color-on-primary-fixed-variant: #005227;
+
+  --color-secondary: #7d5700;
+  --color-secondary-container: #fdc665;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #755100;
+  --color-secondary-fixed: #ffdeaa;
+  --color-secondary-fixed-dim: #f4be5d;
+  --color-on-secondary-fixed: #271900;
+  --color-on-secondary-fixed-variant: #5f4100;
+
+  --color-tertiary: #7e2838;
+  --color-tertiary-container: #9c3f4e;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #ffcbcf;
+  --color-tertiary-fixed: #ffd9dc;
+  --color-tertiary-fixed-dim: #ffb2ba;
+  --color-on-tertiary-fixed: #400010;
+  --color-on-tertiary-fixed-variant: #7e2838;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-surface: #f6fbf3;
+  --color-surface-dim: #d7dbd4;
+  --color-surface-bright: #f6fbf3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f0f5ed;
+  --color-surface-container: #eeeeee;
+  --color-surface-container-high: #e5eae2;
+  --color-surface-container-highest: #dfe4dc;
+  --color-surface-variant: #dfe4dc;
+  
+  --color-on-surface: #181d18;
+  --color-on-surface-variant: #3f4940;
+  --color-inverse-surface: #2d322d;
+  --color-inverse-on-surface: #eef2ea;
+  
+  --color-outline: #6f7a6f;
+  --color-outline-variant: #becabd;
+  --color-medical-green-bright: #4ade80;
+
+  --font-headline: 'Manrope', sans-serif;
+  --font-body: 'Atkinson Hyperlegible Next', sans-serif;
+}
+
+body {
+  font-family: 'Atkinson Hyperlegible Next', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f6fbf3;
+  color: #181d18;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6, .font-manrope {
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.fill-1 {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.grid-overlay {
+  background-size: 40px 40px;
+  background-image:
+    linear-gradient(to right, rgba(0, 82, 39, 0.25) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 82, 39, 0.25) 1px, transparent 1px);
+}
+
+.heatmap-gradient {
+  background: linear-gradient(90deg, #0000ff 0%, #00ffff 25%, #00ff00 50%, #ffff00 75%, #ff0000 100%);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f5ed;
+}
+::-webkit-scrollbar-thumb {
+  background: #becabd;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6f7a6f;
+}
+
+@media print {
+  main { padding-top: 0 !important; }
+  .report-screen { display: block; padding: 8px 0 0; }
+  .report-screen > * { margin-bottom: 12px; }
+  .report-screen > .grid > div { padding: 12px; }
+  .report-document { display: block; padding: 16px; }
+  .report-document > * + * { margin-top: 12px; }
+  .report-document h3 { font-size: 20px; }
+  .region-table { overflow: visible; }
+  .region-table td, .region-table th { padding: 5px 8px; }
+  .report-document section h4 { break-after: avoid; }
+  .report-region-appendix {
+    break-before: page;
+  }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  body {
+    background-color: #ffffff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+

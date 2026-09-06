@@ -1,0 +1,3 @@
+# Legacy Python helpers share the desktop runtime environment. Install the
+# CUDA-enabled torch/torchvision pair with scripts/install_windows_gpu.ps1.
+-r ../requirements-runtime.txt

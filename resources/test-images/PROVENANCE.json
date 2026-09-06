@@ -1,0 +1,17 @@
+[
+  {
+    "copied_file": "resources/test-images/20170629163635747.jpg",
+    "source": "C:\\Users\\ADMIN\\Desktop\\models\\DDR-dataset\\lesion_segmentation\\valid\\image\\20170629163635747.jpg",
+    "sha256": "d4b51a334582efacda5cb7d18a85881a947840046f48eb6321d50e23000573a1"
+  },
+  {
+    "copied_file": "frontend/public/samples/retina-a.jpg",
+    "source": "C:\\Users\\ADMIN\\Desktop\\models\\DDR-dataset\\lesion_segmentation\\valid\\image\\20170629163635747.jpg",
+    "sha256": "d4b51a334582efacda5cb7d18a85881a947840046f48eb6321d50e23000573a1"
+  },
+  {
+    "copied_file": "frontend/public/samples/retina-b.jpg",
+    "source": "C:\\Users\\ADMIN\\Desktop\\models\\DDR-dataset\\lesion_segmentation\\valid\\image\\20170627170652393.jpg",
+    "sha256": "44141a57b4907a9e4a7726ed4a15394d0c320fbd8cf6da036d72075b3681c5b5"
+  }
+]

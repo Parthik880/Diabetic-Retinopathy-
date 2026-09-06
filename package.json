@@ -1,0 +1,55 @@
+{
+  "name": "retinagram-gpu",
+  "version": "0.1.0",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "desktop": "electron .",
+    "start": "npm run build && electron .",
+    "build:backend:gpu": ".venv\\Scripts\\python.exe -m PyInstaller --clean --noconfirm RetinaGramBackendGPU.spec",
+    "package:gpu": "npm run build && npm run build:backend:gpu && electron-builder --win nsis",
+    "package:win": "npm run package:gpu"
+  },
+  "devDependencies": {
+    "electron": "44.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.retinagram.desktop.gpu",
+    "productName": "RetinaGram GPU",
+    "executableName": "RetinaGram GPU",
+    "artifactName": "RetinaGram GPU Setup ${version}.${ext}",
+    "compression": "maximum",
+    "asar": true,
+    "files": [
+      "desktop/**/*",
+      "frontend/dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/RetinaGramBackend",
+        "to": "backend/RetinaGramBackend"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "guid": "f1b934d8-dbeb-4d8b-946c-5e7687edc382",
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RetinaGram GPU",
+      "uninstallDisplayName": "RetinaGram GPU ${version}",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

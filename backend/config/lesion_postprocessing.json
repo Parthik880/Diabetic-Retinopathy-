@@ -1,0 +1,6 @@
+{
+  "pixel_threshold": 0.5,
+  "region_threshold": 0.5,
+  "minimum_area": {"MA": 0.4, "HE": 2.0, "EX": 0.4, "SE": 4.0},
+  "merge_distance": {"MA": 0.0, "HE": 1.0, "EX": 0.0, "SE": 1.0}
+}

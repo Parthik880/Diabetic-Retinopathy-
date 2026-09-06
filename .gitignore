@@ -1,0 +1,79 @@
+# Python — virtualenvs, bytecode, test/type-check caches
+.venv/
+venv/
+__pycache__/
+*.pth
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+resources/models/grade/convnext_tiny.pth
+resources/models/restoration/NAFNet-SIDD-width32.pth
+resources/models/final_efficientnet_iqa.pth
+resources/models/epoch_018_best_dice.pth
+
+# NOTE: deployed model weights under resources/models/ (*.pth) are
+# intentional source assets, not generated artifacts. They are pinned in
+# resources/models/MODEL_MANIFEST.md + MODEL_HASHES.json and verified by
+# scripts/prepare-resources.py ("Preserve resources/models"). Do NOT ignore
+# them. There is no Git LFS setup and no generated-checkpoint directory.
+
+# Node / Electron
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frontend generated build
+frontend/dist/
+
+# PyInstaller outputs. Keep the maintained spec(s) tracked:
+# RetinaGramBackend.spec (CPU-guarded) and RetinaScanBackend.spec.
+build/
+*.spec.bak
+
+# Electron-builder / packaged release.
+# Includes the generated PyInstaller backend at dist/RetinaGramBackend/.
+dist/
+
+# Runtime / local patient data (see scripts/reset_local_data.py).
+# Anchored to repo root so source dirs with similar names stay tracked.
+/work/
+/logs/
+/reports/
+/results/
+/history/
+/sessions/
+/batch_results/
+/exports/
+/temp/
+/tmp/
+/cache/
+backend/inference/outputs/
+
+# Local databases / patient history dumps.
+# Schema/migration code and backend/tests fixtures stay tracked.
+*.db
+*.sqlite
+*.sqlite3
+retinagram-history.json
+
+# Local tooling caches
+/graphify-out/
+
+# Secrets — only .env.example files stay tracked
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

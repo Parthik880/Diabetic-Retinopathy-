@@ -1,0 +1,3 @@
+# Runtime packages only. CUDA-enabled torch and torchvision are installed from
+# the official PyTorch wheel index by scripts/install_windows_gpu.ps1.
+-r requirements-runtime.txt
