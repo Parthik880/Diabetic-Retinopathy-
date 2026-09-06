@@ -13,8 +13,8 @@ __pycache__/
 htmlcov/
 resources/models/grade/convnext_tiny.pth
 resources/models/restoration/NAFNet-SIDD-width32.pth
-resources\models\final_efficientnet_iqa.pth
-resources\models\epoch_018_best_dice.pth
+resources/models/final_efficientnet_iqa.pth
+resources/models/epoch_018_best_dice.pth
 
 # NOTE: deployed model weights under resources/models/ (*.pth) are
 # intentional source assets, not generated artifacts. They are pinned in
