@@ -2,6 +2,7 @@
 .venv/
 venv/
 __pycache__/
+*.pth
 *.py[cod]
 *.pyo
 *.pyd
