@@ -35,7 +35,7 @@ class HookManager:
         self._activations: dict[str, torch.Tensor] = {}
         self._enabled = True
 
-    def register_block(self, name: str, module: nn.Module) -> None:
+    def register_stage(self, name: str, module: nn.Module) -> None:
         def capture(_module: nn.Module, _inputs: tuple[Any, ...], output: Any) -> None:
             if not self._enabled:
                 return
@@ -44,6 +44,10 @@ class HookManager:
                 self._activations[name] = tensor.detach().float().cpu()
 
         self._handles.append(module.register_forward_hook(capture))
+
+    def register_block(self, name: str, module: nn.Module) -> None:
+        """Backward-compatible alias for older explorer callers."""
+        self.register_stage(name, module)
 
     def enable(self) -> None:
         self._enabled = True

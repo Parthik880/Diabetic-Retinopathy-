@@ -42,6 +42,8 @@ export default function App() {
     }
   }
 
+  const visibleWarnings = result?.warnings.filter((warning) => !warning.includes("not a clinical diagnosis")) ?? [];
+
   return (
     <AppShell
       explainability={explainability}
@@ -54,7 +56,7 @@ export default function App() {
       {busy && <div className="analysis-progress" role="status"><span /><div><strong>Running RetinaGram locally</strong><small>Quality → restoration → grade → lesion segmentation. CPU runs may take several minutes.</small></div></div>}
       {!result ? <ImageUpload onFile={upload} busy={busy} /> : <>
         <PipelineStepper stages={result.stages} selected={selectedStage} onSelect={(stage) => setSelectedStage(stage.id)} />
-        {result.warnings.length > 0 && <div className="warning-ribbon"><AlertCircle size={16} /><span>{result.warnings.join(" · ")}</span></div>}
+        {visibleWarnings.length > 0 && <div className="warning-ribbon"><AlertCircle size={16} /><span>{visibleWarnings.join(" · ")}</span></div>}
         {["quality", "restoration", "grade", "lesion"].includes(selectedStage) ? (
           <ModelExplorer modelId={selectedStage as "quality" | "restoration" | "grade" | "lesion"} result={result} explainability={explainability} />
         ) : <StagePlaceholder stage={selectedStage} result={result} />}

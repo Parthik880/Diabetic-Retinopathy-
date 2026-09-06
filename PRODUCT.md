@@ -32,7 +32,7 @@ The application runs locally with the API on `127.0.0.1:8000` and the web interf
 - Load existing checkpoints without retraining or modifying them.
 - Use inference mode or no-grad where gradients are not required.
 - Capture explainability data with short-lived, on-demand forward hooks and never perturb predictions to produce a visualization.
-- Convert selected feature channels to independently normalized grayscale images on the server; never send large raw tensors to the browser.
+- Convert selected feature channels to independently normalized RGB renderings on the server; keep activation-energy views black-and-white and never send large raw tensors to the browser.
 - Distinguish representative feature channels, mean-absolute activation heatmaps, class-conditioned Grad-CAM, and segmentation masks in both implementation and copy.
 - Generate the architecture tree and parameter/block counts from the actual loaded module structure wherever practical.
 - Do not claim that an activation channel maps to a specific pathology without evidence.

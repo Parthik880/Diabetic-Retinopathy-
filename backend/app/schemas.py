@@ -87,6 +87,11 @@ class BlockVisualization(BaseModel):
     spatial: bool
     feature_map_url: str
     activation_heatmap_url: str
+    feature_thumbnail_url: str
+    activation_thumbnail_url: str
+    feature_download_name: str
+    activation_download_name: str
+    channel_index: int | None = None
     feature_method: str
     heatmap_method: str
     input_shape: list[int]

@@ -55,12 +55,17 @@ def test_rejects_invalid_session_id() -> None:
 
 
 def test_explorer_architectures_use_real_model_blocks() -> None:
-    expected_minimums = {"quality": 20, "restoration": 40, "grade": 20, "lesion": 25}
-    for model_id, minimum in expected_minimums.items():
+    expected_stages = {
+        "quality": ["Input", "Stem", "Stage 1", "Stage 2", "Stage 3", "Stage 4", "Stage 5", "Stage 6", "Stage 7", "Feature Head", "Global Pool", "Quality Head"],
+        "restoration": ["Input", "Intro", "Encoder Stage 1", "Encoder Stage 2", "Encoder Stage 3", "Encoder Stage 4", "Bottleneck", "Decoder Stage 4", "Decoder Stage 3", "Decoder Stage 2", "Decoder Stage 1", "Ending", "Restored Output"],
+        "grade": ["Input", "Stem", "Stage 1", "Stage 2", "Stage 3", "Stage 4", "Global Pool", "Classifier"],
+        "lesion": ["Input", "Stem", "Encoder Stage 1", "Encoder Stage 2", "Encoder Stage 3", "Encoder Stage 4", "Bottleneck", "UNet++ Decoder Stage 1", "Decoder Stage 2", "Decoder Stage 3", "Segmentation Head"],
+    }
+    for model_id, labels in expected_stages.items():
         response = client.get(f"/api/explorer/{model_id}")
         assert response.status_code == 200
         payload = response.json()
-        assert payload["block_count"] >= minimum
+        assert [block["label"] for block in payload["blocks"]] == labels
         assert payload["parameter_count"] > 0
         assert len(payload["blocks"]) == payload["block_count"]
 

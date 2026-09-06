@@ -8,7 +8,7 @@ interface PipelineStepperProps {
 }
 
 export function PipelineStepper({ stages, selected, onSelect }: PipelineStepperProps) {
-  const shortLabels: Record<string, string> = { input: "Input", quality: "Quality", restoration: "NAFNet", grade: "Grade", lesion: "Lesions", report: "Final" };
+  const shortLabels: Record<string, string> = { input: "Input", quality: "Quality", restoration: "Restoration", grade: "Grade", lesion: "Lesions", report: "Final Output" };
   return (
     <ol className="pipeline" aria-label="RetinaGram analysis pipeline">
       {stages.map((stage) => {

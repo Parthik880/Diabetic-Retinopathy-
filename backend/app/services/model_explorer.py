@@ -93,49 +93,66 @@ def _internals(module: nn.Module, module_path: str, parent_id: str) -> tuple[Int
 
 
 def _quality_specs(service: Any) -> list[BlockSpec]:
-    specs: list[BlockSpec] = []
-    stem = service.feature_extractor[0][0]
-    specs.append(BlockSpec("quality-stem", "Input stem", "Stem", "feature_extractor.0.0", type(stem).__name__, "Initial 3×3 convolution, normalization, and SiLU activation."))
     features = service.feature_extractor[0]
+    specs: list[BlockSpec] = [
+        BlockSpec("quality-input", "Input", "Input", "__input__", "RGB fundus image", "The validated image after EfficientNet preprocessing."),
+        BlockSpec("quality-stem", "Stem", "Feature extraction", "feature_extractor.0.0", type(features[0]).__name__, "Initial 3×3 convolution, normalization, and SiLU activation."),
+    ]
     for stage_index in range(1, 8):
         stage = features[stage_index]
-        for block_index, module in enumerate(stage):
-            block_id = f"quality-mbconv-{stage_index}-{block_index + 1}"
-            path = f"feature_extractor.0.{stage_index}.{block_index}"
-            specs.append(BlockSpec(block_id, f"MBConv stage {stage_index} · block {block_index + 1}", f"MBConv stage {stage_index}", path, type(module).__name__, "EfficientNet-B0 mobile inverted bottleneck block output.", _internals(module, path, block_id)))
+        internals = tuple(
+            InternalSpec(
+                f"quality-stage-{stage_index}--block-{block_index + 1}",
+                f"MBConv block {block_index + 1}",
+                f"feature_extractor.0.{stage_index}.{block_index}",
+                type(module).__name__,
+            )
+            for block_index, module in enumerate(stage)
+        )
+        specs.append(BlockSpec(
+            f"quality-stage-{stage_index}",
+            f"Stage {stage_index}",
+            "EfficientNet stages",
+            f"feature_extractor.0.{stage_index}",
+            f"EfficientNet MBConv stage · {len(stage)} block{'s' if len(stage) != 1 else ''}",
+            "Meaningful EfficientNet-B0 stage output after its complete MBConv group.",
+            internals,
+        ))
     specs.extend(
         [
-            BlockSpec("quality-head-conv", "Feature head convolution", "Feature extraction", "feature_extractor.0.8", type(features[8]).__name__, "Final EfficientNet convolution before global pooling."),
-            BlockSpec("quality-pooling", "Global average pooling", "Classifier", "feature_extractor.1", "AdaptiveAvgPool2d", "Compresses each feature channel to one value."),
-            BlockSpec("quality-hidden", "Calibrated MLP hidden layer", "Classifier", "classifier.network.0", "Linear", "Maps the 1,280-dimensional feature vector to 128 hidden units."),
-            BlockSpec("quality-logits", "Quality logits", "Classifier", "classifier.network.3", "Linear", "Produces the three pre-temperature quality scores."),
+            BlockSpec("quality-head-conv", "Feature Head", "Feature extraction", "feature_extractor.0.8", type(features[8]).__name__, "Final EfficientNet convolution before global pooling."),
+            BlockSpec("quality-pooling", "Global Pool", "Prediction", "feature_extractor.1", "AdaptiveAvgPool2d", "Compresses each feature channel to one value."),
+            BlockSpec("quality-logits", "Quality Head", "Prediction", "classifier", "Calibrated MLP", "Maps the pooled representation to Good, Usable, and Reject logits.", (
+                InternalSpec("quality-hidden", "128-unit hidden layer", "classifier.network.0", "Linear"),
+                InternalSpec("quality-classifier", "Three-class logits", "classifier.network.3", "Linear"),
+            )),
         ]
     )
     return specs
 
 
 def _restoration_specs(model: nn.Module) -> list[BlockSpec]:
-    specs = [BlockSpec("nafnet-intro", "Intro convolution", "Input projection", "intro", "Conv2d", "Projects RGB input into the width-32 NAFNet feature space.")]
+    specs = [
+        BlockSpec("nafnet-input", "Input", "Input", "__input__", "RGB fundus image", "The selected source image before restoration."),
+        BlockSpec("nafnet-intro", "Intro", "Input projection", "intro", "Conv2d", "Projects RGB input into the width-32 NAFNet feature space."),
+    ]
     for level, encoder in enumerate(model.encoders, 1):
-        for index, block in enumerate(encoder, 1):
-            block_id = f"nafnet-encoder-{level}-block-{index}"
-            path = f"encoders.{level - 1}.{index - 1}"
-            specs.append(BlockSpec(block_id, f"Encoder level {level} · NAFBlock {index}", f"Encoder level {level}", path, "NAFBlock", "Residual NAFBlock at the current encoder resolution.", _internals(block, path, block_id)))
-        specs.append(BlockSpec(f"nafnet-down-{level}", f"Downsample {level}", f"Encoder level {level}", f"downs.{level - 1}", "Stride-2 Conv2d", "Halves spatial resolution and doubles channel width."))
-    for index, block in enumerate(model.middle_blks, 1):
-        block_id = f"nafnet-middle-block-{index}"
-        path = f"middle_blks.{index - 1}"
-        specs.append(BlockSpec(block_id, f"Bottleneck · NAFBlock {index}", "Middle / bottleneck", path, "NAFBlock", "Deepest NAFBlock at the smallest feature resolution.", _internals(block, path, block_id)))
+        path = f"encoders.{level - 1}"
+        internals = tuple(InternalSpec(f"nafnet-encoder-{level}--block-{index}", f"NAFBlock {index}", f"{path}.{index - 1}", "NAFBlock") for index, _ in enumerate(encoder, 1))
+        specs.append(BlockSpec(f"nafnet-encoder-{level}", f"Encoder Stage {level}", "Encoder", path, f"NAFNet encoder · {len(encoder)} NAFBlocks", "Complete encoder stage output before stride-2 downsampling.", internals))
+    specs.append(BlockSpec("nafnet-bottleneck", "Bottleneck", "Bottleneck", "middle_blks", f"NAFNet bottleneck · {len(model.middle_blks)} NAFBlocks", "Deepest representation at the smallest spatial resolution.", tuple(InternalSpec(f"nafnet-bottleneck--block-{index}", f"NAFBlock {index}", f"middle_blks.{index - 1}", "NAFBlock") for index, _ in enumerate(model.middle_blks, 1))))
     for level, (up, decoder) in enumerate(zip(model.ups, model.decoders), 1):
-        specs.append(BlockSpec(f"nafnet-up-{level}", f"Upsample {level}", f"Decoder level {level}", f"ups.{level - 1}", type(up).__name__, "Pointwise convolution followed by PixelShuffle upsampling."))
-        for index, block in enumerate(decoder, 1):
-            block_id = f"nafnet-decoder-{level}-block-{index}"
-            path = f"decoders.{level - 1}.{index - 1}"
-            specs.append(BlockSpec(block_id, f"Decoder level {level} · NAFBlock {index}", f"Decoder level {level}", path, "NAFBlock", "NAFBlock after the matching encoder skip addition.", _internals(block, path, block_id)))
+        stage_number = len(model.decoders) - level + 1
+        path = f"decoders.{level - 1}"
+        internals = (
+            InternalSpec(f"nafnet-decoder-{stage_number}--upsample", "PixelShuffle upsample", f"ups.{level - 1}", type(up).__name__),
+            *(InternalSpec(f"nafnet-decoder-{stage_number}--block-{index}", f"NAFBlock {index}", f"{path}.{index - 1}", "NAFBlock") for index, _ in enumerate(decoder, 1)),
+        )
+        specs.append(BlockSpec(f"nafnet-decoder-{stage_number}", f"Decoder Stage {stage_number}", "Decoder", path, f"NAFNet decoder · {len(decoder)} NAFBlocks", "Complete decoder stage after its matched encoder skip addition.", internals))
     specs.extend(
         [
-            BlockSpec("nafnet-ending", "Ending convolution", "Reconstruction", "ending", "Conv2d", "Projects restored features back to three RGB channels."),
-            BlockSpec("nafnet-output", "Residual reconstruction / final output", "Reconstruction", "__model__", "Residual output", "Adds the padded input to the predicted residual and crops to source dimensions."),
+            BlockSpec("nafnet-ending", "Ending", "Reconstruction", "ending", "Conv2d", "Projects restored features back to three RGB channels."),
+            BlockSpec("nafnet-output", "Restored Output", "Reconstruction", "__model__", "Residual reconstruction", "Adds the padded input to the predicted residual and crops to source dimensions."),
         ]
     )
     return specs
@@ -143,51 +160,46 @@ def _restoration_specs(model: nn.Module) -> list[BlockSpec]:
 
 def _grade_specs(model: nn.Module) -> list[BlockSpec]:
     features = model.model.features
-    specs = [BlockSpec("grade-stem", "ConvNeXt stem", "Stem", "model.features.0", type(features[0]).__name__, "4×4 stride-4 convolution followed by channel-first layer normalization.")]
+    specs = [
+        BlockSpec("grade-input", "Input", "Input", "__input__", "RGB fundus image", "The selected 224×224 classifier input."),
+        BlockSpec("grade-stem", "Stem", "Feature extraction", "model.features.0", type(features[0]).__name__, "4×4 stride-4 convolution followed by channel-first layer normalization."),
+    ]
     stage_slots = (1, 3, 5, 7)
     for stage_number, slot in enumerate(stage_slots, 1):
         stage = features[slot]
-        for index, block in enumerate(stage, 1):
-            block_id = f"grade-stage-{stage_number}-block-{index}"
-            path = f"model.features.{slot}.{index - 1}"
-            specs.append(BlockSpec(block_id, f"ConvNeXt stage {stage_number} · block {index}", f"ConvNeXt stage {stage_number}", path, type(block).__name__, "Residual ConvNeXt block with depthwise convolution and channel MLP.", _internals(block, path, block_id)))
-        if stage_number < 4:
-            down_slot = slot + 1
-            specs.append(BlockSpec(f"grade-downsample-{stage_number}", f"Downsample after stage {stage_number}", f"ConvNeXt stage {stage_number}", f"model.features.{down_slot}", type(features[down_slot]).__name__, "Layer normalization and stride-2 convolution."))
+        path = f"model.features.{slot}"
+        internals = tuple(InternalSpec(f"grade-stage-{stage_number}--block-{index}", f"ConvNeXt block {index}", f"{path}.{index - 1}", type(block).__name__) for index, block in enumerate(stage, 1))
+        specs.append(BlockSpec(f"grade-stage-{stage_number}", f"Stage {stage_number}", "ConvNeXt stages", path, f"ConvNeXt stage · {len(stage)} blocks", "Complete residual ConvNeXt stage output.", internals))
     specs.extend(
         [
-            BlockSpec("grade-pooling", "Global pooling", "Classifier", "model.avgpool", "AdaptiveAvgPool2d", "Reduces the final spatial grid to one value per channel."),
-            BlockSpec("grade-layernorm", "Classifier LayerNorm", "Classifier", "model.classifier.0", type(model.model.classifier[0]).__name__, "Normalizes the pooled 768-channel representation."),
-            BlockSpec("grade-logits", "Five-class classifier", "Classifier", "model.classifier.2", "Linear", "Produces logits for DR grades 0 through 4."),
+            BlockSpec("grade-pooling", "Global Pool", "Prediction", "model.avgpool", "AdaptiveAvgPool2d", "Reduces the final spatial grid to one value per channel."),
+            BlockSpec("grade-logits", "Classifier", "Prediction", "model.classifier", "Five-class classifier", "Normalizes the pooled representation and produces logits for DR grades 0 through 4.", (
+                InternalSpec("grade-layernorm", "Classifier LayerNorm", "model.classifier.0", type(model.model.classifier[0]).__name__, True),
+                InternalSpec("grade-linear", "Five-class linear head", "model.classifier.2", "Linear"),
+            )),
         ]
     )
     return specs
 
 
 def _lesion_specs(model: nn.Module) -> list[BlockSpec]:
-    specs: list[BlockSpec] = []
-    for index, module in enumerate(model.encoder):
-        if index == 0:
-            label, group = "MobileNet stem", "Encoder stem"
-        elif index == 16:
-            label, group = "MobileNet final feature convolution", "Encoder head"
-        else:
-            label, group = f"Inverted residual block {index}", "MobileNetV3 encoder"
-        block_id = f"lesion-encoder-{index}"
-        path = f"encoder.{index}"
-        specs.append(BlockSpec(block_id, label, group, path, type(module).__name__, "Real MobileNetV3-Large encoder output; SE is listed only where present.", _internals(module, path, block_id)))
-    for index, module in enumerate(model.projections):
-        specs.append(BlockSpec(f"lesion-projection-{index + 1}", f"Encoder projection {index + 1}", "Encoder projections", f"projections.{index}", "1×1 Conv2d", "Maps a selected encoder feature into the UNet++ decoder width."))
-    for name in ("conv0_1", "conv1_1", "conv2_1", "conv0_2", "conv1_2", "conv0_3"):
-        module = getattr(model, name)
-        block_id = f"lesion-{name.replace('_', '-')}"
-        specs.append(BlockSpec(block_id, f"UNet++ decoder node {name.replace('_', ',')}", "UNet++ nested decoder", name, type(module).__name__, "Nested decoder feature built from projected encoder and earlier decoder nodes.", _internals(module, name, block_id)))
-    specs.extend(
-        [
-            BlockSpec("lesion-output-head", "Four-channel segmentation head", "Segmentation output", "output", "1×1 Conv2d", "Produces logits for MA, HE, EX, and SE channels."),
-            BlockSpec("lesion-logits", "Resized segmentation logits", "Segmentation output", "__model__", "Bilinear output", "Four-channel logits resized to the 768×768 model input space."),
-        ]
-    )
+    feature_indices = tuple(model.feature_indices)
+    specs: list[BlockSpec] = [
+        BlockSpec("lesion-input", "Input", "Input", "__input__", "RGB fundus image", "The selected 768×768 segmentation input."),
+        BlockSpec("lesion-stem", "Stem", "MobileNetV3 encoder", "encoder.0", type(model.encoder[0]).__name__, "MobileNetV3-Large input convolution."),
+    ]
+    previous = 1
+    for stage_number, feature_index in enumerate(feature_indices, 1):
+        internals = tuple(InternalSpec(f"lesion-encoder-{stage_number}--block-{index}", f"Inverted residual block {index}", f"encoder.{index}", type(model.encoder[index]).__name__) for index in range(previous, feature_index + 1))
+        specs.append(BlockSpec(f"lesion-encoder-{stage_number}", f"Encoder Stage {stage_number}", "MobileNetV3 encoder", f"encoder.{feature_index}", f"MobileNetV3 stage · through block {feature_index}", "Actual encoder feature selected by the UNet++ decoder.", internals))
+        previous = feature_index + 1
+    specs.extend([
+        BlockSpec("lesion-bottleneck", "Bottleneck", "UNet++ bridge", "projections.3", "1×1 encoder projection", "Projects the deepest 960-channel MobileNetV3 feature to the decoder width."),
+        BlockSpec("lesion-decoder-1", "UNet++ Decoder Stage 1", "UNet++ decoder", "conv2_1", type(model.conv2_1).__name__, "Deep decoder fusion of encoder stages 3 and 4.", tuple(InternalSpec(f"lesion-decoder-1--{name}", f"Nested node {name.replace('_', ',')}", name, type(getattr(model, name)).__name__) for name in ("conv0_1", "conv1_1", "conv2_1"))),
+        BlockSpec("lesion-decoder-2", "Decoder Stage 2", "UNet++ decoder", "conv1_2", type(model.conv1_2).__name__, "Second nested fusion combining prior decoder and encoder features.", tuple(InternalSpec(f"lesion-decoder-2--{name}", f"Nested node {name.replace('_', ',')}", name, type(getattr(model, name)).__name__) for name in ("conv0_2", "conv1_2"))),
+        BlockSpec("lesion-decoder-3", "Decoder Stage 3", "UNet++ decoder", "conv0_3", type(model.conv0_3).__name__, "Final full-resolution nested decoder feature before segmentation logits."),
+        BlockSpec("lesion-output-head", "Segmentation Head", "Segmentation output", "__model__", "Four-channel bilinear output", "Produces resized logits for the verified MA, HE, EX, and SE channels."),
+    ])
     return specs
 
 
@@ -268,6 +280,8 @@ def _resolve_module(model_id: str, model: Any, module_path: str) -> nn.Module:
             raise ValueError("Quality service has no root module hook")
         return model
     if model_id == "quality":
+        if "." not in module_path:
+            return getattr(model, module_path)
         root_name, relative = module_path.split(".", 1)
         root = getattr(model, root_name)
         return root.get_submodule(relative)
@@ -301,7 +315,7 @@ def _forward(model_id: str, model: Any, tensor: torch.Tensor) -> torch.Tensor:
     return model(tensor)
 
 
-def _activation_map(tensor: torch.Tensor, *, energy: bool, channels_last: bool = False) -> tuple[np.ndarray, bool, int]:
+def _activation_map(tensor: torch.Tensor, *, energy: bool, channels_last: bool = False, channel: int | None = None) -> tuple[np.ndarray, bool, int, int | None]:
     value = tensor.detach().float().cpu()
     if value.ndim >= 4:
         value = value[0]
@@ -311,12 +325,16 @@ def _activation_map(tensor: torch.Tensor, *, energy: bool, channels_last: bool =
         channels = int(value.shape[0])
         if energy:
             plane = value.abs().mean(dim=0)
+            selected_channel = None
         else:
             scores = value.flatten(1).abs().mean(dim=1)
-            plane = value[int(scores.argmax().item())]
-        return plane.numpy(), True, channels
+            selected_channel = int(scores.argmax().item()) if channel is None else channel
+            if selected_channel < 0 or selected_channel >= channels:
+                raise ValueError(f"channel must be between 0 and {channels - 1}")
+            plane = value[selected_channel]
+        return plane.numpy(), True, channels, selected_channel
     flat = value.flatten()
-    return (flat.abs() if energy else flat).numpy()[None, :], False, int(flat.numel())
+    return (flat.abs() if energy else flat).numpy()[None, :], False, int(flat.numel()), None
 
 
 def _normalize(array: np.ndarray) -> np.ndarray:
@@ -333,6 +351,18 @@ def _save_grayscale(array: np.ndarray, path: Path) -> None:
     if image.height == 1:
         image = image.resize((max(320, image.width), 72), Image.Resampling.NEAREST)
     image.save(path)
+
+
+def _save_feature_rgb(array: np.ndarray, path: Path) -> None:
+    """Render one deterministic feature channel with RetinaGram's RGB ramp."""
+    Image.fromarray(_colorize(array), mode="RGB").save(path)
+
+
+def _save_thumbnail(source: Path, destination: Path, edge: int = 320) -> None:
+    with Image.open(source) as image:
+        thumbnail = image.copy()
+        thumbnail.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+        thumbnail.save(destination, optimize=True)
 
 
 def _colorize(array: np.ndarray) -> np.ndarray:
@@ -363,55 +393,123 @@ def _lookup_spec(model_id: str, model: Any, block_id: str) -> tuple[BlockSpec, s
     raise KeyError(block_id)
 
 
-def capture_block(session_id: str, model_id: str, block_id: str) -> dict[str, Any]:
-    manifest = read_manifest(session_id)
-    model, _ = _model_and_specs(model_id)
-    parent, module_path, label, block_type, channels_last = _lookup_spec(model_id, model, block_id)
-    output_dir = SESSION_ROOT / session_id / "explorer" / model_id / block_id
+def _input_activation(model_id: str, image_path: Path, tensor: torch.Tensor) -> torch.Tensor:
+    """Return a spatial CPU tensor for the validated model input."""
+    if model_id == "restoration":
+        return tensor.detach().float().cpu()
+    with Image.open(image_path) as image:
+        size = (int(tensor.shape[-1]), int(tensor.shape[-2]))
+        pixels = np.asarray(image.convert("RGB").resize(size, Image.Resampling.BILINEAR), dtype=np.float32) / 255.0
+    return torch.from_numpy(np.ascontiguousarray(pixels.transpose(2, 0, 1))).unsqueeze(0)
+
+
+def _render_visualization(
+    session_id: str,
+    model_id: str,
+    spec: BlockSpec,
+    activation: torch.Tensor,
+    input_shape: list[int],
+    *,
+    channels_last: bool = False,
+    channel: int | None = None,
+) -> dict[str, Any]:
+    suffix = "auto" if channel is None else f"ch-{channel}"
+    output_dir = SESSION_ROOT / session_id / "explorer" / model_id / spec.id / suffix
     metadata_path = output_dir / "metadata.json"
     if metadata_path.is_file():
         return json.loads(metadata_path.read_text(encoding="utf-8"))
-
     output_dir.mkdir(parents=True, exist_ok=True)
-    image_path = _selected_image(session_id, model_id, manifest)
-    tensor = _prepare_input(model_id, image_path, model)
-    module = _resolve_module(model_id, model, module_path)
-    with INFERENCE_LOCK, HookManager() as hooks:
-        hooks.register_block("selected", module)
-        with torch.inference_mode():
-            _forward(model_id, model, tensor)
-        activation = hooks.get_activation("selected")
-
-    feature, spatial, channels = _activation_map(activation, energy=False, channels_last=channels_last)
-    energy, _energy_spatial, _ = _activation_map(activation, energy=True, channels_last=channels_last)
+    feature, spatial, channels, channel_index = _activation_map(activation, energy=False, channels_last=channels_last, channel=channel)
+    energy, _energy_spatial, _, _ = _activation_map(activation, energy=True, channels_last=channels_last)
     feature_path = output_dir / "feature.png"
-    heatmap_path = output_dir / "activation-energy.png"
-    _save_grayscale(feature, feature_path)
-    _save_heatmap(energy, heatmap_path)
+    activation_path = output_dir / "activation.png"
+    feature_thumb = output_dir / "feature-thumb.png"
+    activation_thumb = output_dir / "activation-thumb.png"
+    _save_feature_rgb(feature, feature_path)
+    _save_grayscale(energy, activation_path)
+    _save_thumbnail(feature_path, feature_thumb)
+    _save_thumbnail(activation_path, activation_thumb)
     shape = [int(value) for value in activation.shape]
     if channels_last and len(shape) == 4:
         height, width = int(shape[1]), int(shape[2])
     else:
         height = int(shape[-2]) if len(shape) >= 3 else 1
         width = int(shape[-1]) if len(shape) >= 2 else shape[0]
+    stem = spec.id.replace("-", "_")
     response = {
-        "id": block_id,
-        "parent_id": parent.id,
-        "label": label,
-        "block_type": block_type,
+        "id": spec.id,
+        "parent_id": spec.id,
+        "label": spec.label,
+        "block_type": spec.block_type,
         "tensor_shape": shape,
         "channels": channels,
         "height": height,
         "width": width,
         "spatial": spatial,
         "feature_map_url": media_url(feature_path, session_id),
-        "activation_heatmap_url": media_url(heatmap_path, session_id),
-        "feature_method": "Strongest representative channel by mean absolute response, percentile-normalized to grayscale.",
-        "heatmap_method": "Channel mean absolute activation, percentile-normalized. This is activation energy, not Grad-CAM.",
-        "input_shape": [int(value) for value in tensor.shape],
+        "activation_heatmap_url": media_url(activation_path, session_id),
+        "feature_thumbnail_url": media_url(feature_thumb, session_id),
+        "activation_thumbnail_url": media_url(activation_thumb, session_id),
+        "feature_download_name": f"{stem}_feature_ch{channel_index}.png" if channel_index is not None else f"{stem}_feature.png",
+        "activation_download_name": f"{stem}_activation.png",
+        "channel_index": channel_index,
+        "feature_method": "Deterministic strongest channel by mean absolute response, percentile-normalized and rendered with a fixed RetinaGram RGB ramp." if channel is None else f"Channel {channel}, percentile-normalized and rendered with a fixed RetinaGram RGB ramp.",
+        "heatmap_method": "Channel mean absolute activation, percentile-normalized to grayscale. This is activation energy, not Grad-CAM.",
+        "input_shape": input_shape,
     }
     metadata_path.write_text(json.dumps(response, indent=2), encoding="utf-8")
     return response
+
+
+def capture_stages(session_id: str, model_id: str) -> list[dict[str, Any]]:
+    """Capture every meaningful architectural stage in one inference pass."""
+    manifest = read_manifest(session_id)
+    model, specs = _model_and_specs(model_id)
+    cached: list[dict[str, Any]] = []
+    cache_complete = True
+    for spec in specs:
+        metadata = SESSION_ROOT / session_id / "explorer" / model_id / spec.id / "auto" / "metadata.json"
+        if not metadata.is_file():
+            cache_complete = False
+            break
+        cached.append(json.loads(metadata.read_text(encoding="utf-8")))
+    if cache_complete:
+        return cached
+
+    image_path = _selected_image(session_id, model_id, manifest)
+    tensor = _prepare_input(model_id, image_path, model)
+    activations: dict[str, torch.Tensor] = {specs[0].id: _input_activation(model_id, image_path, tensor)}
+    with INFERENCE_LOCK, HookManager() as hooks:
+        for spec in specs:
+            if spec.module_path == "__input__":
+                continue
+            hooks.register_stage(spec.id, _resolve_module(model_id, model, spec.module_path))
+        with torch.inference_mode():
+            _forward(model_id, model, tensor)
+        for spec in specs:
+            if spec.module_path != "__input__":
+                activations[spec.id] = hooks.get_activation(spec.id)
+    input_shape = [int(value) for value in tensor.shape]
+    return [_render_visualization(session_id, model_id, spec, activations[spec.id], input_shape) for spec in specs]
+
+
+def capture_block(session_id: str, model_id: str, block_id: str, channel: int | None = None) -> dict[str, Any]:
+    manifest = read_manifest(session_id)
+    model, _ = _model_and_specs(model_id)
+    parent, module_path, label, block_type, channels_last = _lookup_spec(model_id, model, block_id)
+    image_path = _selected_image(session_id, model_id, manifest)
+    tensor = _prepare_input(model_id, image_path, model)
+    if module_path == "__input__":
+        activation = _input_activation(model_id, image_path, tensor)
+    else:
+        module = _resolve_module(model_id, model, module_path)
+        with INFERENCE_LOCK, HookManager() as hooks:
+            hooks.register_stage("selected", module)
+            with torch.inference_mode():
+                _forward(model_id, model, tensor)
+            activation = hooks.get_activation("selected")
+    render_spec = BlockSpec(block_id, label, parent.group, module_path, block_type, parent.description)
+    return _render_visualization(session_id, model_id, render_spec, activation, [int(value) for value in tensor.shape], channels_last=channels_last, channel=channel)
 
 
 def grade_gradcam(session_id: str, target_class: int) -> dict[str, Any]:

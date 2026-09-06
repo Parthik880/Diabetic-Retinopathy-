@@ -1,4 +1,4 @@
-import type { AnalysisResult, BlockVisualization, ExplorerArchitecture, GradeGradCAM } from "./types";
+import type { AnalysisResult, BlockVisualization, ExplorerArchitecture, GradeGradCAM, LesionRegionResponse } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -45,6 +45,15 @@ export function loadBlockVisualization(sessionId: string, modelId: string, block
   return readJson(`/api/explorer/${encodeURIComponent(modelId)}/blocks/${encodeURIComponent(blockId)}?session_id=${encodeURIComponent(sessionId)}`);
 }
 
+export function loadStageVisualizations(sessionId: string, modelId: string): Promise<BlockVisualization[]> {
+  return readJson(`/api/explorer/${encodeURIComponent(modelId)}/visualizations?session_id=${encodeURIComponent(sessionId)}`);
+}
+
 export function loadGradeGradCAM(sessionId: string, targetClass: number): Promise<GradeGradCAM> {
   return readJson(`/api/explorer/grade/gradcam/${targetClass}?session_id=${encodeURIComponent(sessionId)}`);
+}
+
+export function loadLesionRegions(sessionId: string, limit: number, lesionClass: string): Promise<LesionRegionResponse> {
+  const params = new URLSearchParams({ limit: String(limit), lesion_class: lesionClass });
+  return readJson(`/api/lesions/${encodeURIComponent(sessionId)}/regions?${params}`);
 }

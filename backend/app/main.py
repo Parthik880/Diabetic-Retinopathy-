@@ -21,7 +21,7 @@ from backend.app.schemas import (
 )
 from backend.app.services.analysis import pipeline_stages, run_analysis
 from backend.app.services.image_store import read_manifest, save_upload
-from backend.app.services.model_explorer import architecture, capture_block, grade_gradcam
+from backend.app.services.model_explorer import architecture, capture_block, capture_stages, grade_gradcam
 
 
 @asynccontextmanager
@@ -78,11 +78,30 @@ async def explorer_block(
     model_id: str,
     block_id: str,
     session_id: str = Query(..., min_length=32, max_length=32),
+    channel: int | None = Query(default=None, ge=0),
 ) -> dict:
     if model_id not in {"quality", "restoration", "grade", "lesion"}:
         raise HTTPException(status_code=404, detail="Model explorer not found.")
     try:
-        return await run_in_threadpool(capture_block, session_id, model_id, block_id)
+        return await run_in_threadpool(capture_block, session_id, model_id, block_id, channel)
+    except (FileNotFoundError, KeyError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get(
+    "/api/explorer/{model_id}/visualizations",
+    response_model=list[BlockVisualization],
+)
+async def explorer_visualizations(
+    model_id: str,
+    session_id: str = Query(..., min_length=32, max_length=32),
+) -> list[dict]:
+    if model_id not in {"quality", "restoration", "grade", "lesion"}:
+        raise HTTPException(status_code=404, detail="Model explorer not found.")
+    try:
+        return await run_in_threadpool(capture_stages, session_id, model_id)
     except (FileNotFoundError, KeyError) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (RuntimeError, ValueError) as exc:
@@ -119,6 +138,55 @@ def analysis_session(session_id: str) -> dict:
         return read_manifest(session_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/lesions/{session_id}/regions")
+def lesion_regions(
+    session_id: str,
+    limit: int = Query(default=25, ge=1, le=25),
+    lesion_class: str | None = Query(default=None),
+) -> dict:
+    try:
+        manifest = read_manifest(session_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    lesions = manifest.get("lesions")
+    if not lesions:
+        raise HTTPException(status_code=404, detail="Lesion segmentation result not found.")
+    regions = lesions.get("regions", [])
+    if lesion_class and lesion_class.upper() != "ALL":
+        code = lesion_class.upper()
+        if code not in lesions.get("channel_order", []):
+            raise HTTPException(status_code=422, detail="Unknown lesion class filter.")
+        regions = [region for region in regions if region["class_code"] == code]
+    retained = regions[:limit]
+    return {
+        "regions": retained,
+        "count": len(retained),
+        "available_count": len(regions),
+        "limit": limit,
+        "confidence_method": lesions.get("confidence_method"),
+    }
+
+
+@app.get("/api/lesions/{session_id}/regions/{rank}/crop")
+def lesion_region_crop(session_id: str, rank: int) -> FileResponse:
+    try:
+        manifest = read_manifest(session_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    region = next((item for item in manifest.get("lesions", {}).get("regions", []) if item.get("rank") == rank), None)
+    if region is None:
+        raise HTTPException(status_code=404, detail="Lesion region not found.")
+    prefix = f"/media/{session_id}/"
+    crop_url = region["crop_url"]
+    root = (SESSION_ROOT / session_id).resolve()
+    crop_path = (root / crop_url.removeprefix(prefix)).resolve()
+    try:
+        crop_path.relative_to(root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Lesion crop not found.") from exc
+    return FileResponse(crop_path, filename=region["download_name"])
 
 
 @app.get("/api/nafnet/features/{stage}", response_model=FeatureStage)

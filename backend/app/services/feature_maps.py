@@ -52,6 +52,19 @@ def _representative_channels(total: int, count: int = 8) -> list[int]:
     return sorted({int(value) for value in np.linspace(0, total - 1, count)})
 
 
+def _colorize_feature(array: np.ndarray) -> np.ndarray:
+    """Map a normalized feature channel to the stable RetinaGram RGB ramp."""
+    stops = np.array([0.0, 0.35, 0.72, 1.0], dtype=np.float32)
+    colors = np.array(
+        [[7, 26, 22], [20, 91, 74], [213, 118, 32], [255, 239, 181]],
+        dtype=np.float32,
+    )
+    rgb = np.empty((*array.shape, 3), dtype=np.uint8)
+    for channel in range(3):
+        rgb[..., channel] = np.interp(array, stops, colors[:, channel]).astype(np.uint8)
+    return rgb
+
+
 def _save_feature_stage(
     stage_id: str,
     label: str,
@@ -78,9 +91,9 @@ def _save_feature_stage(
             normalized = (channel - minimum) / (maximum - minimum)
         else:
             normalized = torch.zeros_like(channel)
-        pixels = np.rint(normalized.numpy() * 255.0).astype(np.uint8)
+        pixels = _colorize_feature(normalized.numpy())
         path = stage_dir / f"channel_{index:03d}.png"
-        Image.fromarray(pixels, mode="L").save(path, optimize=True)
+        Image.fromarray(pixels, mode="RGB").save(path, optimize=True)
         paths.append(str(path.resolve()))
 
     shape = [int(value) for value in activation.shape]
@@ -93,7 +106,7 @@ def _save_feature_stage(
         "channels_shown": len(paths),
         "images": paths,
         "explanation": (
-            "These grayscale images show normalized activation strength for "
+            "These RGB-rendered images show normalized activation strength for "
             "representative channels. They are internal model responses, not "
             "direct maps of a specific lesion or diagnosis."
         ),

@@ -23,7 +23,7 @@ export function ImageUpload({ onFile, busy }: ImageUploadProps) {
         }}
       >
         <div className="upload-symbol"><ImagePlus size={32} strokeWidth={1.6} /></div>
-        <h1 id="upload-heading">Inspect the retinal pipeline, layer by layer.</h1>
+        <h1 id="upload-heading">See the retinal pipeline, stage by stage.</h1>
         <p>Upload one fundus image to run the repository’s real quality, restoration, grading, and lesion models.</p>
         <label className={busy ? "upload-label disabled" : "upload-label"}>
           <input

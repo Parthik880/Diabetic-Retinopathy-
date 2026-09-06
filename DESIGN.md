@@ -17,31 +17,31 @@ colors:
   error-wash: "#fff0ed"
 typography:
   display:
-    fontFamily: "Manrope Variable, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Text, Inter, Segoe UI, sans-serif"
     fontSize: "clamp(30px, 4vw, 48px)"
     fontWeight: 700
     lineHeight: 1.08
     letterSpacing: "-0.035em"
   headline:
-    fontFamily: "Manrope Variable, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Display, Inter, Segoe UI, sans-serif"
     fontSize: "clamp(26px, 2.5vw, 36px)"
     fontWeight: 700
     lineHeight: 1.12
     letterSpacing: "-0.035em"
   title:
-    fontFamily: "Manrope Variable, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Text, Inter, Segoe UI, sans-serif"
     fontSize: "15px"
     fontWeight: 700
     lineHeight: 1.3
     letterSpacing: "-0.015em"
   body:
-    fontFamily: "Manrope Variable, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Text, Inter, Segoe UI, sans-serif"
     fontSize: "13px"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "normal"
   label:
-    fontFamily: "Manrope Variable, sans-serif"
+    fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Text, Inter, Segoe UI, sans-serif"
     fontSize: "10px"
     fontWeight: 700
     lineHeight: 1.25
@@ -104,17 +104,17 @@ components:
 
 RetinaGram is a quiet, evidence-minded inspection workspace: part clinical atlas, part engineering bench. Warm near-white fields and paper-white cards keep retinal imagery and model outputs dominant, while restrained mint and deep green communicate order, safety, and local system state without slipping into wellness branding or diagnostic theater.
 
-The interface is dense enough for developers, researchers, and clinical project reviewers to compare real intermediate artifacts, but never visually dramatic about what the models mean. Model names, checkpoint provenance, execution device, stage state, dimensions, channel counts, and normalization language belong close to the evidence they qualify. Research-only safeguards are persistent content, not a footer disclaimer.
+The interface is dense enough for developers, researchers, and clinical project reviewers to compare real intermediate artifacts, but never visually dramatic about what the models mean. Model names, checkpoint provenance, execution device, stage state, dimensions, channel counts, and normalization language belong close to the evidence they qualify. Model-specific limitations stay beside the affected evidence; there is no standing warning banner.
 
-This system is shipped for desktop and PC inspection. Its signature composition is a fixed application frame, a six-stage pipeline rail, and an evidence-first NAFNet bench: input image, restored comparison, feature stages, then an encoder-to-bottleneck-to-decoder transformation trace. Narrow-width CSS is defensive fallback behavior and must not be treated as a mobile product specification.
+This system is shipped for desktop and PC inspection. Its signature composition is a translucent sticky header, a full-width six-stage pipeline rail, and a horizontally scrollable stage explorer with one selected-stage detail area. Narrow-width CSS is defensive fallback behavior and must not be treated as a mobile product specification.
 
 **Key Characteristics:**
 
 - Light cream and white surfaces with a disciplined deep-green hierarchy.
-- Compact Manrope typography with strong headings and quiet metadata.
+- Modern system typography with strong headings and quiet metadata.
 - Rounded, lightly bordered cards that frame evidence without decorating it.
-- Explicit model provenance, local-session language, and research-only safeguards.
-- Evidence-safe retinal images, grayscale activations, and restrained attribution language.
+- Explicit model provenance, local-session language, and evidence-specific limitations.
+- Evidence-safe retinal images, RGB feature maps, grayscale activations, and restrained attribution language.
 - Desktop-first spatial density organized around a six-stage pipeline rail.
 
 ## Colors
@@ -152,11 +152,13 @@ The palette feels clean, botanical, and clinical: green provides structure and s
 
 ## Typography
 
-**Display Font:** Manrope Variable (with sans-serif fallback)  
-**Body Font:** Manrope Variable (with sans-serif fallback)  
-**Label Font:** Manrope Variable (with sans-serif fallback)
+**Display Font:** SF Pro Display / Inter / Segoe UI system fallback
 
-**Character:** Manrope gives the atlas a contemporary technical voice without looking mechanical. Tight display tracking creates authority; generous body leading and small, disciplined metadata keep dense evidence readable.
+**Body Font:** SF Pro Text / Inter / Segoe UI system fallback
+
+**Label Font:** SF Pro Text / Inter / Segoe UI system fallback
+
+**Character:** Native UI type keeps the application crisp and familiar across macOS and Windows. Tight display tracking creates authority; generous body leading and disciplined metadata keep dense evidence readable.
 
 ### Hierarchy
 
@@ -172,13 +174,13 @@ The palette feels clean, botanical, and clinical: green provides structure and s
 
 ## Layout
 
-The desktop frame uses a 74px sticky top bar above a 232px left navigation column and a flexible workspace. The workspace carries 26px horizontal padding and centers major content within a 1530px maximum width. This creates a stable PC canvas in which navigation, pipeline state, and evidence remain visible together.
+The desktop frame uses a translucent sticky top bar above a flexible, full-width workspace with 20–28px responsive padding. There is no sidebar. The content canvas remains stable at 1366px, 1600px, and 1920px while architectural rails scroll internally instead of widening the page.
 
 The six-stage pipeline rail spans the workspace before stage content. Each stage receives equal width, a circular status marker, a concise title, and a one- or two-line provenance description. Completed or error stages are revisit-able; unavailable stages remain visibly disabled. Preserve all six stages—Input Image, Quality Check, NAFNet Restoration, Grade Classification, Lesion Segmentation, and Final Report—as the product’s primary orientation device.
 
-The NAFNet inspection bench is intentionally asymmetric: input is the narrow reference column, restoration is a slightly wider comparison column, and feature maps receive the largest column. The observed proportions are approximately 0.88fr / 1.05fr / 1.65fr with 15px gutters. Below it, the seven-node transformation rail runs Input → Encoder Block 1 → Encoder Block 2 → Bottleneck → Decoder Block 1 → Decoder Block 2 → Restored Output.
+Each model uses one horizontal, no-wrap architectural stage strip. Cards expose an RGB feature thumbnail and a black-and-white activation thumbnail, support native horizontal scrolling and arrow controls, and feed one detail area below. NAFNet runs Input → Intro → Encoder Stages 1–4 → Bottleneck → Decoder Stages 4–1 → Ending → Restored Output.
 
-The shipped scope is desktop/PC. At narrower desktop widths the sidebar may condense and the evidence bench may wrap, but do not design new mobile navigation or claim handheld support. Defensive styles below 760px are resilience behavior only.
+The shipped scope is desktop/PC. At narrower desktop widths the top controls may wrap and the evidence detail may stack, but do not design new mobile navigation or claim handheld support. Defensive styles below 760px are resilience behavior only.
 
 **The Evidence Gets the Width Rule.** Retinal images, comparisons, feature maps, and transformation traces take priority over explanatory prose in horizontal space.
 
@@ -220,9 +222,9 @@ Borders remain one pixel and low contrast. Dark image wells may clip real imager
 
 ### Navigation
 
-- **Style:** The desktop sidebar uses 43px rows, 10px corners, an icon-plus-label structure, and muted text at rest.
-- **State:** Hover uses a pale green wash. The active destination is a solid Retinal Forest row with white content.
-- **Context:** Keep “Local session” and “Your image stays on this device” visible at the sidebar base on desktop.
+- **Style:** The sticky header carries brand, visualizer identity, explainability mode, and upload action. The six-stage rail provides primary navigation below it.
+- **State:** Hover uses a pale green wash. The selected pipeline stage uses a mint field and strong green marker.
+- **Context:** Keep execution device and model provenance near the current model heading.
 
 ### Pipeline Rail
 
@@ -240,7 +242,7 @@ Borders remain one pixel and low contrast. Dark image wells may clip real imager
 
 ### Notices
 
-- **Research safeguard:** Caution Wash with amber text and icon, positioned before analysis content or immediately after the evidence it limits.
+- **Model limitation:** Use compact amber copy only beside the affected output, such as the generic SIDD restoration limitation. Do not show a standing research warning.
 - **Error:** Error Wash with red text and an optional dismiss action.
 - **Progress:** Clinical Mint with a compact green spinner and a concrete pipeline sequence.
 
@@ -250,7 +252,7 @@ The restoration card uses a horizontal range control over two contained versions
 
 ### Feature Maps and Transformation Rail
 
-Feature maps are organized as five selectable stages—Encoder 1, Encoder 2, Bottleneck, Decoder 1, and Decoder 2—with up to eight representative grayscale channels. Each selected stage shows layer name, displayed/total channels, tensor dimensions, and a conservative explanation. Channels are independently normalized for display and must be described as internal model responses, not direct pathology maps.
+Feature maps are organized by meaningful model stages, not primitive layers. Each stage shows one deterministic representative channel with a fixed RetinaGram RGB ramp and one separately labeled black-and-white mean-absolute activation view. The selected stage shows tensor dimensions, channel count, spatial resolution, selected channel, model block type, and optional genuine internals. Images remain ordinary image elements so their native context menu and meaningful download filenames work.
 
 The separate transformation rail uses one representative channel to explain the real forward sequence from input to restored output. It is a provenance diagram, not a causal or lesion-localization claim.
 
@@ -262,7 +264,7 @@ The separate transformation rail uses one representative channel to explain the 
 - **Do** keep model names, device state, tensor dimensions, channel counts, normalization, and checkpoint limitations beside the relevant artifact.
 - **Do** render source and restored retinal images contained within dark wells so the full image remains inspectable.
 - **Do** describe feature maps as normalized internal activations and Grad-CAM as attention, never as proof of pathology.
-- **Do** repeat research-only and clinician-review safeguards wherever a result could be over-interpreted.
+- **Do** place concise model-specific limitations beside the affected result without repeating a standing warning.
 - **Do** preserve semantic controls, descriptive alternative text, and the visible shared focus treatment.
 
 ### Don't:

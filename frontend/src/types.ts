@@ -50,6 +50,24 @@ export interface LesionClassResult {
   image_percentage: number;
   probability_map_url?: string | null;
   mask_url?: string | null;
+  total_valid_regions?: number;
+}
+
+export interface LesionRegion {
+  rank: number;
+  class_code: string;
+  class_name: string;
+  confidence: number;
+  mean_probability: number;
+  max_probability: number;
+  center_pixels: [number, number];
+  bbox_pixels: [number, number, number, number];
+  bbox_normalized: [number, number, number, number];
+  area_pixels: number;
+  width: number;
+  height: number;
+  crop_url: string;
+  download_name: string;
 }
 
 export interface LesionResult {
@@ -59,6 +77,10 @@ export interface LesionResult {
   overlay_url: string;
   device: string;
   localization_note: string;
+  regions: LesionRegion[];
+  region_count: number;
+  region_limit: number;
+  confidence_method: string;
 }
 
 export interface AnalysisResult {
@@ -112,6 +134,11 @@ export interface BlockVisualization {
   spatial: boolean;
   feature_map_url: string;
   activation_heatmap_url: string;
+  feature_thumbnail_url: string;
+  activation_thumbnail_url: string;
+  feature_download_name: string;
+  activation_download_name: string;
+  channel_index?: number | null;
   feature_method: string;
   heatmap_method: string;
   input_shape: number[];
@@ -122,4 +149,12 @@ export interface GradeGradCAM {
   probabilities: number[];
   gradcam_url: string;
   method: string;
+}
+
+export interface LesionRegionResponse {
+  regions: LesionRegion[];
+  count: number;
+  available_count: number;
+  limit: number;
+  confidence_method: string;
 }

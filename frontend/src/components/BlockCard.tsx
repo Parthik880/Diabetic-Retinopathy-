@@ -56,7 +56,7 @@ export function BlockCard({ block, modelId, sessionId, expanded, advanced, onTog
           {!loading && visual && (
             <>
               <div className="visual-pair">
-                <figure><div><a href={assetUrl(visual.feature_map_url)} target="_blank" rel="noreferrer" title="Open feature map at captured resolution"><img src={assetUrl(visual.feature_map_url)} alt={`${visual.label} representative grayscale feature`} /></a></div><figcaption><strong>Intermediate output</strong><span>Representative channel · grayscale</span></figcaption></figure>
+                <figure><div><a href={assetUrl(visual.feature_map_url)} target="_blank" rel="noreferrer" title="Open feature map at captured resolution"><img src={assetUrl(visual.feature_map_url)} alt={`${visual.label} representative RGB feature`} /></a></div><figcaption><strong>Intermediate output</strong><span>Representative channel · RGB rendering</span></figcaption></figure>
                 <figure><div><a href={assetUrl(visual.activation_heatmap_url)} target="_blank" rel="noreferrer" title="Open heatmap at captured resolution"><img src={assetUrl(visual.activation_heatmap_url)} alt={`${visual.label} mean absolute activation heatmap`} /></a></div><figcaption><strong>Activation heatmap</strong><span>Channel mean absolute response</span></figcaption></figure>
               </div>
               <div className="tensor-strip">

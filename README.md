@@ -239,8 +239,8 @@ npm install
 cd ..
 ```
 
-Python 3.10–3.12 is recommended. The frontend uses a locally bundled Manrope
-font package and does not depend on a hosted font at runtime.
+Python 3.10–3.12 is recommended. The frontend uses the operating system's modern
+UI font stack and does not depend on a hosted font at runtime.
 
 ### 2. Start the backend
 
@@ -268,8 +268,13 @@ Implemented endpoints:
 - `GET /api/explorer/{model_id}/blocks/{block_id}?session_id=...` — runs one
   short-lived hook and returns rendered feature/activation image URLs plus the
   exact captured tensor shape. Raw tensors are never serialized to the browser.
+- `GET /api/explorer/{model_id}/visualizations?session_id=...` — captures every
+  meaningful architecture stage in one bounded inference pass and returns RGB
+  feature maps plus black-and-white activation views.
 - `GET /api/explorer/grade/gradcam/{target_class}?session_id=...` — recomputes
   class-conditioned ConvNeXt Grad-CAM for grades 0–4.
+- `GET /api/lesions/{session_id}/regions` — returns the globally ranked, real
+  connected components retained from the segmentation probability maps.
 - `GET /api/nafnet/features/{stage}?session_id=...` — legacy session endpoint for
   analyses created by the earlier five-stage feature-map implementation.
 
@@ -317,23 +322,25 @@ the longest edge to keep local inference bounded.
 ### 6. Layer explorer and hook lifecycle
 
 The reusable `HookManager` in `backend/app/services/hook_manager.py` registers
-only the selected block, detaches the captured tensor, moves it to CPU, and
-removes every hook at the end of the request. Initial analysis no longer renders
-feature maps eagerly. `backend/app/services/model_explorer.py` derives the
-available blocks from the real model modules and reruns one bounded inference
-only when a card is expanded. Renders are cached under the current session.
+only meaningful architecture stages, detaches captured tensors, moves them to
+CPU, and removes every hook at the end of the request. Initial analysis does not
+render explorer imagery. `backend/app/services/model_explorer.py` reruns one
+bounded inference when a model view is opened, then caches all stage renders
+under the current session.
 
-Default block units are EfficientNet MBConv blocks, every NAFBlock plus real
-down/up modules, every ConvNeXt block and downsampler, MobileNetV3 inverted
-residual blocks, actual encoder projections, UNet++ nested decoder nodes, and
-the real output heads. Advanced mode exposes child operations that genuinely
-exist inside those repository modules.
+Default units are stage-level: EfficientNet stages and quality head; NAFNet
+intro, four encoder stages, the 12-block bottleneck, four decoder stages, ending,
+and restored output; ConvNeXt stem, four stages, pooling and classifier; and the
+MobileNetV3 sampling stages, UNet++ decoder stages, and segmentation head.
+Advanced Internals preserves genuine child operations without cluttering the
+primary horizontal flow.
 
-The grayscale feature image is the strongest representative channel by mean
-absolute response. The distinct heatmap is channel mean absolute activation
-energy. Both use safe percentile normalization for display, and neither is
-called Grad-CAM. NAFNet visualization reruns on a documented preview capped at
-384 pixels on its longest edge; prediction still uses the full validated image.
+The RGB feature image is a deterministic representative channel rendered with a
+fixed green-to-amber color ramp. The distinct black-and-white view is channel
+mean absolute activation energy. Both use safe percentile normalization for
+display, and neither is called Grad-CAM. NAFNet visualization reruns on a
+documented preview capped at 384 pixels on its longest edge; prediction still
+uses the full validated image.
 
 Existing grade Grad-CAM remains in `models/grade/gradcam.py` and is exposed with
 a real target-class selector. Lesion output uses the model's actual thresholded
