@@ -1,0 +1,3 @@
+# Legacy Python helpers share the CPU desktop runtime environment. Install the
+# CPU-only torch/torchvision pair with scripts/install_cpu.ps1.
+-r ../requirements-runtime.txt

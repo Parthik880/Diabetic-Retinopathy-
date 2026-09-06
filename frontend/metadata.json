@@ -1,0 +1,6 @@
+{
+  "name": "RetinaGram",
+  "description": "Offline AI-assisted retinal screening for image quality, diabetic retinopathy grading, and lesion detection.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

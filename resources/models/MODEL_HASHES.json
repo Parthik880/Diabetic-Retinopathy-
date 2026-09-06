@@ -1,0 +1,27 @@
+[
+  {
+    "file": "epoch_018_best_dice.pth",
+    "size_bytes": 51997113,
+    "sha256": "5af3ed1059b6bba3d2a4f666ff6d8c0dce3cf29da466c28de8bc4be21ec57d05"
+  },
+  {
+    "file": "final_efficientnet_iqa.pth",
+    "size_bytes": 660659,
+    "sha256": "c9e6798682916e55dd327901854dfb9521dcf17408956b4238a9d3f922d1e426"
+  },
+  {
+    "file": "grade/convnext_tiny.pth",
+    "size_bytes": 111369899,
+    "sha256": "3e1106ea74c6f54153e3d553dff0c9ba5e7f91af4d65d45509b32d9532498a47"
+  },
+  {
+    "file": "restoration/NAFNet-SIDD-width32.pth",
+    "size_bytes": 116861841,
+    "sha256": "89c70e808d1783b6c07911306e106aaf0d4f7f3da8c61078b99ff7f8929a26f4"
+  },
+  {
+    "file": "torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth",
+    "size_bytes": 21444401,
+    "sha256": "7f5810bc96def8f7552d5b7e68d53c4786f81167d28291b21c0d90e1fca14934"
+  }
+]

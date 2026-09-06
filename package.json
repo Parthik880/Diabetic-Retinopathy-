@@ -1,0 +1,35 @@
+{
+  "name": "retina-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "desktop": "electron .",
+    "start": "npm run build && electron .",
+    "package:win": "npm run build && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "44.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.retinagram.desktop",
+    "productName": "RetinaGram",
+    "asar": true,
+    "files": [
+      "desktop/**/*",
+      "frontend/dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/RetinaGramBackend",
+        "to": "backend/RetinaGramBackend"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

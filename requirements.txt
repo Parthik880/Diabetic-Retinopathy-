@@ -1,0 +1,3 @@
+# Runtime packages only. CPU-only torch and torchvision are installed from the
+# official PyTorch CPU wheel index by scripts/install_cpu.ps1.
+-r requirements-runtime.txt
