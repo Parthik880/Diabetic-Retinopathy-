@@ -4,7 +4,7 @@ Dataset: DDR + IDRiD
 Resolution: 768x768
 
 Baseline source:
-epoch_018_best_dice.pth
+models/checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth
 
 Epoch: 18
 

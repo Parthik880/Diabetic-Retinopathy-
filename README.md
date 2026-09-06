@@ -57,7 +57,7 @@ class EfficientNetIQA(nn.Module):
 
 The classifier directly produces three logits. In evaluation mode, dropout
 is disabled. The service loads the head strictly from
-`model/checkpoints/final_efficientnet_iqa.pth`, whose saved fields include
+`models/checkpoints/final_efficientnet_iqa.pth`, whose saved fields include
 `model_state_dict` and `temperature`.
 
 ```text
@@ -95,7 +95,7 @@ Calls to `predict_iqa` without an explicit service cache it by checkpoint/device
 
 **Implementation:** MobileNetV3-Large encoder features feed a four-level
 nested UNet++ decoder. The selected checkpoint,
-`model/checkpoints/epoch_018_best_dice.pth`, produces logits shaped
+`models/checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth`, produces logits shaped
 `[1, 4, 768, 768]`, with channels:
 
 | Channel | Lesion |
@@ -139,7 +139,7 @@ The tensor is `[1, 3, H, W]`: no fixed-size resize or ImageNet normalization.
 **Implementation:** width-32 NAFNet uses encoder blocks `[2,2,4,8]`,
 12 middle blocks, and decoder blocks `[2,2,2,2]`. Internal padding supports
 the network's spatial requirements, and output is cropped to the original size.
-The default checkpoint is `checkpoint/restoration/NAFNet-SIDD-width32.pth`.
+The default checkpoint is `models/checkpoints/NAFNet-SIDD-width32.pth`.
 
 **Output:** a restored RGB array, a saved PNG path, dimensions, and
 device/checkpoint metadata. The application can pass that PNG back to IQA
@@ -162,7 +162,7 @@ converted to a tensor, and ImageNet-normalized: `[1, 3, 224, 224]`.
 
 **Implementation:** torchvision ConvNeXt Tiny has its final linear classifier
 replaced with five outputs. The loader strictly loads
-`checkpoint/grade/convnext_tiny.pth`. Softmax converts the five logits to
+`models/checkpoints/convnext_tiny.pth`. Softmax converts the five logits to
 probabilities; argmax selects grade **0, 1, 2, 3, or 4**.
 
 **Output:** five logits, five probabilities, `predicted_class`,
@@ -176,9 +176,9 @@ grade = predict_grade("fundus.jpg", save_gradcam=True)
 ```
 
 All wrappers support CPU and CUDA. Grade, lesion, and restoration accept a
-loaded `model` for reuse across images. Grade/restoration checkpoint roots
-can be set with `DR_CHECKPOINT_DIR`; IQA and lesion default to the committed
-files under `model/checkpoints/`.
+loaded `model` for reuse across images. All four models default to the shared
+`models/checkpoints/` directory; `DR_CHECKPOINT_DIR` can select an alternative
+flat checkpoint directory.
 
 ## What the application receives and displays
 

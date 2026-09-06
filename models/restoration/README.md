@@ -20,16 +20,15 @@ output: same spatial resolution as the input
 The current default checkpoint is provided by the centralized offline bundle:
 
 ```text
-checkpoint/restoration/NAFNet-SIDD-width32.pth
+models/checkpoints/NAFNet-SIDD-width32.pth
 ```
 
 BasicSR wrappers containing `params`, `params_ema`, `state_dict`, `net_g`, or
 `model` are accepted and loaded strictly. The official generic
-`NAFNet-SIDD-width32.pth` is 116,861,841 bytes, exceeds GitHub's normal 100 MB
-file limit, and is therefore not committed. It is a SIDD denoising checkpoint,
-not a retinal-trained model. The loader reads it directly and never downloads
-weights. Set `DR_CHECKPOINT_DIR` when the extracted bundle is not at the
-repository-relative `checkpoint/` path.
+`NAFNet-SIDD-width32.pth` is 116,861,841 bytes and is tracked with Git LFS. It
+is a SIDD denoising checkpoint, not a retinal-trained model. The loader reads
+it directly and never downloads weights. Set `DR_CHECKPOINT_DIR` to use an
+alternative flat checkpoint directory.
 
 The locally prepared retinal training setup used aligned 384x384 RGB pairs,
 256x256 training crops, no flip/rotation augmentation, AdamW, PSNR loss, and

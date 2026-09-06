@@ -56,7 +56,7 @@ Quality Class
 Final calibrated checkpoint:
 
 ```text
-final_efficientnet_iqa.pth
+models/checkpoints/final_efficientnet_iqa.pth
 ```
 
 ## 4. Current Performance
@@ -106,12 +106,11 @@ The backend does not need to know the internal EfficientNet architecture.
 ## 6. Repository Structure
 
 ```text
-iqa/
-├── README.md
-├── dataset_loader.py
-├── fast_iqa_baseline.py
-└── models/
-    └── final_efficientnet_iqa.pth
+models/
+├── checkpoints/
+│   └── final_efficientnet_iqa.pth
+└── iqa/
+    └── README.md
 ```
 
 The retinal-image dataset is **not included in the repository**.
@@ -125,7 +124,7 @@ Model            → EfficientNet-B0
 Class mapping    → 0 Reject / 1 Usable / 2 Good
 Classifier head  → 1280 → 128 → 3
 Dropout          → 0.30
-Final checkpoint → final_efficientnet_iqa.pth
+Final checkpoint → models/checkpoints/final_efficientnet_iqa.pth
 ```
 
 Most importantly, **inference preprocessing must match the preprocessing used during training.**
