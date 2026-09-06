@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-06T18:18:07.6374573+05:30",
+  "title": "Design System: RetinaGram AI Model Visualizer",
+  "extensions": {
+    "colorMeta": {
+      "retinal-forest": { "role": "primary", "displayName": "Retinal Forest", "canonical": "#0b573f", "tonalRamp": ["#06231a", "#073426", "#094833", "#0b573f", "#397765", "#78a895", "#b9d6ca", "#e8f5ee"] },
+      "retinal-forest-deep": { "role": "primary", "displayName": "Retinal Forest Deep", "canonical": "#073c2d", "tonalRamp": ["#031913", "#05271e", "#073c2d", "#185342", "#4b796a", "#83a79b", "#bed2cb", "#edf4f1"] },
+      "retinal-forest-soft": { "role": "primary", "displayName": "Retinal Forest Soft", "canonical": "#397765", "tonalRamp": ["#10251f", "#1d3c33", "#2a584b", "#397765", "#629485", "#91b4a9", "#c4d7d1", "#eff6f3"] },
+      "clinical-mint": { "role": "secondary", "displayName": "Clinical Mint", "canonical": "#e8f5ee", "tonalRamp": ["#17352a", "#285444", "#3d735e", "#5f927b", "#8bb39f", "#b6d2c3", "#d5e8de", "#e8f5ee"] },
+      "warm-cream": { "role": "neutral", "displayName": "Warm Cream", "canonical": "#fbfcf8", "tonalRamp": ["#272823", "#484a43", "#6c6e65", "#91938a", "#b6b8b0", "#d5d7d0", "#eceee8", "#fbfcf8"] },
+      "paper-white": { "role": "neutral", "displayName": "Paper White", "canonical": "#ffffff", "tonalRamp": ["#262626", "#474747", "#696969", "#8c8c8c", "#b0b0b0", "#d0d0d0", "#eeeeee", "#ffffff"] },
+      "structural-line": { "role": "neutral", "displayName": "Structural Line", "canonical": "#dbe8e0", "tonalRamp": ["#1c2f25", "#365044", "#527164", "#749285", "#9ab3a7", "#bdcfc6", "#dbe8e0", "#f4f8f6"] },
+      "deep-ink": { "role": "neutral", "displayName": "Deep Ink", "canonical": "#173d32", "tonalRamp": ["#081812", "#102a22", "#173d32", "#31594e", "#5d7c72", "#8ea69f", "#c3d0cc", "#eef3f1"] },
+      "muted-sage": { "role": "neutral", "displayName": "Muted Sage", "canonical": "#5b776e", "tonalRamp": ["#182521", "#2d3d38", "#465b54", "#5b776e", "#809990", "#a9bbb5", "#d0dbd7", "#f0f5f3"] },
+      "caution-amber": { "role": "tertiary", "displayName": "Caution Amber", "canonical": "#a96914", "tonalRamp": ["#301d05", "#553309", "#7c4b0d", "#a96914", "#c98c38", "#dfb36e", "#eed5aa", "#fff5df"] },
+      "caution-wash": { "role": "tertiary", "displayName": "Caution Wash", "canonical": "#fff5df", "tonalRamp": ["#352706", "#5b4511", "#816623", "#a9883b", "#c9aa65", "#e2cb96", "#f3e5c1", "#fff5df"] },
+      "error-red": { "role": "tertiary", "displayName": "Error Red", "canonical": "#9b342e", "tonalRamp": ["#2c0d0b", "#4f1714", "#74231f", "#9b342e", "#bc5c55", "#d58d87", "#e9beb9", "#fff0ed"] },
+      "error-wash": { "role": "tertiary", "displayName": "Error Wash", "canonical": "#fff0ed", "tonalRamp": ["#35110d", "#5d221b", "#843a31", "#aa5a50", "#cb837a", "#e3afa8", "#f4d5d0", "#fff0ed"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Entry-point and empty-state messages only." },
+      "headline": { "displayName": "Stage Headline", "purpose": "Primary pipeline-stage titles." },
+      "title": { "displayName": "Section Title", "purpose": "Evidence and result module headings." },
+      "body": { "displayName": "Body", "purpose": "Descriptions, caveats, and supporting explanations." },
+      "label": { "displayName": "System Label", "purpose": "Badges, device state, and compact metadata." }
+    },
+    "shadows": [
+      { "name": "top-bar-ambient", "value": "0 8px 24px rgba(23,61,50,.06)", "purpose": "Separates sticky application chrome from scrolling evidence." },
+      { "name": "primary-action", "value": "0 8px 18px rgba(11,87,63,.17)", "purpose": "Gives the upload action restrained physical emphasis." },
+      { "name": "primary-action-hover", "value": "0 10px 22px rgba(11,87,63,.21)", "purpose": "Hover feedback for the primary action." },
+      { "name": "selected-tab", "value": "0 3px 8px rgba(21,83,62,.08)", "purpose": "Distinguishes the active feature stage from its track." }
+    ],
+    "motion": [
+      { "name": "interaction-fast", "value": "160ms ease-out", "purpose": "Buttons and direct state feedback." },
+      { "name": "surface-standard", "value": "180ms ease-out", "purpose": "Toggle, drag target, and low-pressure surface transitions." },
+      { "name": "thumb-spring", "value": "180ms cubic-bezier(.2,.8,.2,1)", "purpose": "Explainability toggle thumb movement." },
+      { "name": "progress-spin", "value": "750ms linear infinite", "purpose": "Local analysis progress only; suppressed by reduced-motion preferences." }
+    ],
+    "breakpoints": [
+      { "name": "compact-desktop", "value": "1180px" },
+      { "name": "defensive-narrow-fallback", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Upload Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single high-priority upload action in the desktop frame.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Upload New Image</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border:0;border-radius:10px;background:var(--forest,#0b573f);color:#fff;font:700 13px/1.2 \"Manrope Variable\",sans-serif;cursor:pointer;box-shadow:0 8px 18px rgba(11,87,63,.17);transition:transform 160ms ease-out,background 160ms ease-out,box-shadow 160ms ease-out}.ds-btn-primary:hover{background:var(--forest-deep,#073c2d);transform:translateY(-1px);box-shadow:0 10px 22px rgba(11,87,63,.21)}.ds-btn-primary:focus-visible{outline:3px solid rgba(43,138,104,.34);outline-offset:3px}.ds-btn-primary:active{transform:translateY(0)}"
+    },
+    {
+      "name": "Active Sidebar Destination",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "The selected destination in the persistent desktop navigation.",
+      "html": "<button class=\"ds-nav-active\" type=\"button\">Model Visualizer</button>",
+      "css": ".ds-nav-active{display:flex;align-items:center;width:203px;min-height:43px;padding:0 13px;border:0;border-radius:10px;background:var(--forest,#0b573f);color:#fff;font:620 13px/1.2 \"Manrope Variable\",sans-serif;text-align:left;cursor:pointer}.ds-nav-active:hover{background:var(--forest-deep,#073c2d)}.ds-nav-active:focus-visible{outline:3px solid rgba(43,138,104,.34);outline-offset:3px}.ds-nav-active:active{filter:brightness(.96)}"
+    },
+    {
+      "name": "Completed Pipeline Stage",
+      "kind": "custom",
+      "description": "A completed, revisit-able stage in the six-stage analysis rail.",
+      "html": "<button class=\"ds-stage\" type=\"button\"><span class=\"ds-stage-mark\">✓</span><span><strong>NAFNet Restoration</strong><small>Noise reduction and structural restoration</small></span></button>",
+      "css": ".ds-stage{display:flex;align-items:center;gap:9px;width:220px;min-height:69px;padding:10px 12px;border:0;background:#eef8f2;color:#31594d;font-family:\"Manrope Variable\",sans-serif;text-align:left;cursor:pointer}.ds-stage-mark{display:grid;place-items:center;flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--forest,#0b573f);color:#fff;font-size:13px}.ds-stage span:last-child{display:grid;gap:3px;min-width:0}.ds-stage strong{font-size:11px}.ds-stage small{color:#526f65;font-size:10px;line-height:1.25}.ds-stage:hover{background:#e8f5ee}.ds-stage:focus-visible{outline:3px solid rgba(43,138,104,.34);outline-offset:-3px}.ds-stage:active{background:#dcefe5}"
+    },
+    {
+      "name": "Evidence Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A flat, bordered container for retinal imagery or model evidence.",
+      "html": "<article class=\"ds-card\"><h3>Feature Maps (Encoder → Decoder)</h3><div class=\"ds-card-well\"></div><p>8 representative normalized channels</p></article>",
+      "css": ".ds-card{width:320px;padding:14px;border:1px solid var(--line,#dbe8e0);border-radius:14px;background:#fff;color:var(--ink,#173d32);font-family:\"Manrope Variable\",sans-serif}.ds-card h3{margin:0 0 10px;font-size:13px}.ds-card-well{height:140px;border-radius:11px;background:#102d24}.ds-card p{margin:9px 0 0;color:var(--muted,#5b776e);font-size:10px;line-height:1.5}.ds-card:hover{border-color:#cbded4}.ds-card:focus-within{outline:3px solid rgba(43,138,104,.34);outline-offset:3px}"
+    },
+    {
+      "name": "System Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A terse device, channel-count, or normalization tag.",
+      "html": "<span class=\"ds-chip\">CPU INFERENCE</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:var(--mint,#e8f5ee);color:var(--forest,#0b573f);font:760 10px/1.25 \"Manrope Variable\",sans-serif;letter-spacing:.06em;text-transform:uppercase}.ds-chip:hover{background:#dcefe5}.ds-chip:focus-visible{outline:3px solid rgba(43,138,104,.34);outline-offset:3px}"
+    },
+    {
+      "name": "Research-Only Notice",
+      "kind": "custom",
+      "refersTo": "research-notice",
+      "description": "Persistent epistemic caution placed near model output.",
+      "html": "<aside class=\"ds-research-notice\">This visualizer exposes model output for research and development; it is not a clinical diagnosis.</aside>",
+      "css": ".ds-research-notice{max-width:720px;padding:9px 12px;border-radius:10px;background:var(--amber-bg,#fff5df);color:#7f5517;font:400 12px/1.5 \"Manrope Variable\",sans-serif}.ds-research-notice:hover{background:#fff0cf}.ds-research-notice:focus-visible{outline:3px solid rgba(169,105,20,.25);outline-offset:3px}"
+    },
+    {
+      "name": "Selected Feature Tab",
+      "kind": "button",
+      "description": "The active encoder, bottleneck, or decoder stage in the feature panel.",
+      "html": "<button class=\"ds-feature-tab\" type=\"button\" aria-selected=\"true\">Encoder 1</button>",
+      "css": ".ds-feature-tab{min-width:94px;padding:6px 8px;border:0;border-radius:7px;background:#fff;color:var(--forest,#0b573f);font:700 9px/1.25 \"Manrope Variable\",sans-serif;box-shadow:0 3px 8px rgba(21,83,62,.08);cursor:pointer}.ds-feature-tab:hover{background:#f8fbf9}.ds-feature-tab:focus-visible{outline:3px solid rgba(43,138,104,.34);outline-offset:2px}.ds-feature-tab:active{background:#eef8f2}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Clinical Retinal-Imaging Atlas",
+    "overview": "RetinaGram is a quiet, evidence-minded inspection workspace: part clinical atlas, part engineering bench. Warm near-white fields and paper-white cards keep retinal imagery and model outputs dominant, while restrained mint and deep green communicate order, safety, and local system state without slipping into wellness branding or diagnostic theater. The interface is dense enough for developers, researchers, and clinical project reviewers to compare real intermediate artifacts, but never visually dramatic about what the models mean. Model names, checkpoint provenance, execution device, stage state, dimensions, channel counts, and normalization language belong close to the evidence they qualify. Research-only safeguards are persistent content, not a footer disclaimer. This system is shipped for desktop and PC inspection. Its signature composition is a fixed application frame, a six-stage pipeline rail, and an evidence-first NAFNet bench: input image, restored comparison, feature stages, then an encoder-to-bottleneck-to-decoder transformation trace. Narrow-width CSS is defensive fallback behavior and must not be treated as a mobile product specification.",
+    "keyCharacteristics": [
+      "Light cream and white surfaces with a disciplined deep-green hierarchy.",
+      "Compact Manrope typography with strong headings and quiet metadata.",
+      "Rounded, lightly bordered cards that frame evidence without decorating it.",
+      "Explicit model provenance, local-session language, and research-only safeguards.",
+      "Evidence-safe retinal images, grayscale activations, and restrained attribution language.",
+      "Desktop-first spatial density organized around a six-stage pipeline rail."
+    ],
+    "rules": [
+      { "name": "The Green Is Structure Rule", "body": "Use the primary green to clarify navigation, progress, or action; do not flood large content areas with it.", "section": "colors" },
+      { "name": "The Amber Means Epistemic Caution Rule", "body": "Amber qualifies evidence and interpretation. Reserve red for actual system errors.", "section": "colors" },
+      { "name": "The Quiet Metadata Rule", "body": "Metadata may be small, but it must remain readable and adjacent to the artifact it explains; never reduce critical caveats to ornamental microcopy.", "section": "typography" },
+      { "name": "The Evidence Gets the Width Rule", "body": "Retinal images, comparisons, feature maps, and transformation traces take priority over explanatory prose in horizontal space.", "section": "layout" },
+      { "name": "The Flat Evidence Rule", "body": "Evidence cards are bordered, not elevated. Shadow is feedback for chrome or interaction, never decoration around model output.", "section": "elevation" },
+      { "name": "The Soft Frame, Honest Image Rule", "body": "Round the container, not the evidence: never crop, mask, recolor, or beautify retinal imagery merely to match the interface silhouette.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep the six-stage rail visible above completed-stage content on desktop.",
+      "Do keep model names, device state, tensor dimensions, channel counts, normalization, and checkpoint limitations beside the relevant artifact.",
+      "Do render source and restored retinal images contained within dark wells so the full image remains inspectable.",
+      "Do describe feature maps as normalized internal activations and Grad-CAM as attention, never as proof of pathology.",
+      "Do repeat research-only and clinician-review safeguards wherever a result could be over-interpreted.",
+      "Do preserve semantic controls, descriptive alternative text, and the visible shared focus treatment."
+    ],
+    "donts": [
+      "Don't present RetinaGram as a diagnostic device or invent performance, pathology, or treatment claims.",
+      "Don't imply that generic SIDD-trained NAFNet restoration is retinal-trained clinical enhancement.",
+      "Don't crop, retouch, recolor, or selectively emphasize retinal evidence to make a result look more convincing.",
+      "Don't turn the calm cream, white, mint, and green system into a dark theme, saturated dashboard, or neon AI aesthetic.",
+      "Don't use shadow as a default card treatment or replace quiet borders with heavy chrome.",
+      "Don't describe narrow-width fallback CSS as a supported mobile experience; the current design contract is desktop/PC-only."
+    ]
+  }
+}

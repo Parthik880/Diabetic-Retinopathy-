@@ -1,0 +1,275 @@
+---
+name: RetinaGram AI Model Visualizer
+description: A calm clinical retinal-imaging atlas for inspecting real local model computation.
+colors:
+  retinal-forest: "#0b573f"
+  retinal-forest-deep: "#073c2d"
+  retinal-forest-soft: "#397765"
+  clinical-mint: "#e8f5ee"
+  warm-cream: "#fbfcf8"
+  paper-white: "#ffffff"
+  structural-line: "#dbe8e0"
+  deep-ink: "#173d32"
+  muted-sage: "#5b776e"
+  caution-amber: "#a96914"
+  caution-wash: "#fff5df"
+  error-red: "#9b342e"
+  error-wash: "#fff0ed"
+typography:
+  display:
+    fontFamily: "Manrope Variable, sans-serif"
+    fontSize: "clamp(30px, 4vw, 48px)"
+    fontWeight: 700
+    lineHeight: 1.08
+    letterSpacing: "-0.035em"
+  headline:
+    fontFamily: "Manrope Variable, sans-serif"
+    fontSize: "clamp(26px, 2.5vw, 36px)"
+    fontWeight: 700
+    lineHeight: 1.12
+    letterSpacing: "-0.035em"
+  title:
+    fontFamily: "Manrope Variable, sans-serif"
+    fontSize: "15px"
+    fontWeight: 700
+    lineHeight: 1.3
+    letterSpacing: "-0.015em"
+  body:
+    fontFamily: "Manrope Variable, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.6
+    letterSpacing: "normal"
+  label:
+    fontFamily: "Manrope Variable, sans-serif"
+    fontSize: "10px"
+    fontWeight: 700
+    lineHeight: 1.25
+    letterSpacing: "0.06em"
+rounded:
+  feature: "7px"
+  control: "10px"
+  image: "11px"
+  surface: "14px"
+  upload: "18px"
+  pill: "999px"
+spacing:
+  xs: "6px"
+  sm: "9px"
+  md: "12px"
+  lg: "17px"
+  xl: "22px"
+  page-x: "26px"
+components:
+  button-primary:
+    backgroundColor: "{colors.retinal-forest}"
+    textColor: "{colors.paper-white}"
+    typography: "{typography.body}"
+    rounded: "{rounded.control}"
+    padding: "0 16px"
+    height: "40px"
+  button-primary-hover:
+    backgroundColor: "{colors.retinal-forest-deep}"
+    textColor: "{colors.paper-white}"
+    rounded: "{rounded.control}"
+  navigation-active:
+    backgroundColor: "{colors.retinal-forest}"
+    textColor: "{colors.paper-white}"
+    rounded: "{rounded.control}"
+    padding: "0 13px"
+    height: "43px"
+  card:
+    backgroundColor: "{colors.paper-white}"
+    textColor: "{colors.deep-ink}"
+    rounded: "{rounded.surface}"
+    padding: "14px"
+  chip:
+    backgroundColor: "{colors.clinical-mint}"
+    textColor: "{colors.retinal-forest}"
+    typography: "{typography.label}"
+    rounded: "{rounded.pill}"
+    padding: "6px 9px"
+  research-notice:
+    backgroundColor: "{colors.caution-wash}"
+    textColor: "{colors.caution-amber}"
+    rounded: "{rounded.control}"
+    padding: "9px 12px"
+---
+
+# Design System: RetinaGram AI Model Visualizer
+
+## Overview
+
+**Creative North Star: "The Calm Clinical Retinal-Imaging Atlas"**
+
+RetinaGram is a quiet, evidence-minded inspection workspace: part clinical atlas, part engineering bench. Warm near-white fields and paper-white cards keep retinal imagery and model outputs dominant, while restrained mint and deep green communicate order, safety, and local system state without slipping into wellness branding or diagnostic theater.
+
+The interface is dense enough for developers, researchers, and clinical project reviewers to compare real intermediate artifacts, but never visually dramatic about what the models mean. Model names, checkpoint provenance, execution device, stage state, dimensions, channel counts, and normalization language belong close to the evidence they qualify. Research-only safeguards are persistent content, not a footer disclaimer.
+
+This system is shipped for desktop and PC inspection. Its signature composition is a fixed application frame, a six-stage pipeline rail, and an evidence-first NAFNet bench: input image, restored comparison, feature stages, then an encoder-to-bottleneck-to-decoder transformation trace. Narrow-width CSS is defensive fallback behavior and must not be treated as a mobile product specification.
+
+**Key Characteristics:**
+
+- Light cream and white surfaces with a disciplined deep-green hierarchy.
+- Compact Manrope typography with strong headings and quiet metadata.
+- Rounded, lightly bordered cards that frame evidence without decorating it.
+- Explicit model provenance, local-session language, and research-only safeguards.
+- Evidence-safe retinal images, grayscale activations, and restrained attribution language.
+- Desktop-first spatial density organized around a six-stage pipeline rail.
+
+## Colors
+
+The palette feels clean, botanical, and clinical: green provides structure and state, mint provides low-emphasis grouping, and amber is reserved for epistemic caution.
+
+### Primary
+
+- **Retinal Forest:** The main action and active-state color. Use it for primary buttons, completed markers, selected navigation, progress bars, and concise status emphasis.
+- **Retinal Forest Deep:** The strongest text and hover color. Use it for page headings, the RetinaGram wordmark, and deeper interactive states.
+- **Retinal Forest Soft:** Supporting brand copy and explanatory text on mint surfaces.
+
+### Secondary
+
+- **Clinical Mint:** A low-pressure grouping surface for provenance strips, stage badges, feature metadata, result summaries, and explainability states. It is not a decorative wash for entire pages.
+
+### Neutral
+
+- **Warm Cream:** The lightest warm canvas option for section backgrounds.
+- **Paper White:** The primary card and top-bar surface.
+- **Structural Line:** The quiet border and divider color that separates cards, rail stages, and data rows.
+- **Deep Ink:** Default high-contrast text inside content surfaces.
+- **Muted Sage:** Supporting copy, captions, metadata, and secondary navigation.
+
+### Tertiary
+
+- **Caution Amber / Caution Wash:** Pair for research-only language, low-quality states, and interpretation limits. It communicates caution, not failure.
+- **Error Red / Error Wash:** Pair only for execution failures or unavailable states that require recovery.
+
+### Named Rules
+
+**The Green Is Structure Rule.** Use the primary green to clarify navigation, progress, or action; do not flood large content areas with it.
+
+**The Amber Means Epistemic Caution Rule.** Amber qualifies evidence and interpretation. Reserve red for actual system errors.
+
+## Typography
+
+**Display Font:** Manrope Variable (with sans-serif fallback)  
+**Body Font:** Manrope Variable (with sans-serif fallback)  
+**Label Font:** Manrope Variable (with sans-serif fallback)
+
+**Character:** Manrope gives the atlas a contemporary technical voice without looking mechanical. Tight display tracking creates authority; generous body leading and small, disciplined metadata keep dense evidence readable.
+
+### Hierarchy
+
+- **Display** (700, fluid 30–48px, 1.08): Empty-state and entry-point messages only; keep lines short and balanced.
+- **Headline** (700, fluid 26–36px, 1.12): Pipeline-stage titles and primary screen headings.
+- **Title** (700, 15px, 1.3): Section titles such as transformation and result modules.
+- **Body** (400, 13px, 1.6): Stage descriptions, safeguard explanations, and other sustained reading; explanatory lines generally stay below roughly 780px.
+- **Label** (700, 10px, 1.25, 0.06em tracking): Badges, device state, normalization notes, and compact metadata. Uppercase only when the label is a terse system tag.
+
+### Named Rules
+
+**The Quiet Metadata Rule.** Metadata may be small, but it must remain readable and adjacent to the artifact it explains; never reduce critical caveats to ornamental microcopy.
+
+## Layout
+
+The desktop frame uses a 74px sticky top bar above a 232px left navigation column and a flexible workspace. The workspace carries 26px horizontal padding and centers major content within a 1530px maximum width. This creates a stable PC canvas in which navigation, pipeline state, and evidence remain visible together.
+
+The six-stage pipeline rail spans the workspace before stage content. Each stage receives equal width, a circular status marker, a concise title, and a one- or two-line provenance description. Completed or error stages are revisit-able; unavailable stages remain visibly disabled. Preserve all six stages—Input Image, Quality Check, NAFNet Restoration, Grade Classification, Lesion Segmentation, and Final Report—as the product’s primary orientation device.
+
+The NAFNet inspection bench is intentionally asymmetric: input is the narrow reference column, restoration is a slightly wider comparison column, and feature maps receive the largest column. The observed proportions are approximately 0.88fr / 1.05fr / 1.65fr with 15px gutters. Below it, the seven-node transformation rail runs Input → Encoder Block 1 → Encoder Block 2 → Bottleneck → Decoder Block 1 → Decoder Block 2 → Restored Output.
+
+The shipped scope is desktop/PC. At narrower desktop widths the sidebar may condense and the evidence bench may wrap, but do not design new mobile navigation or claim handheld support. Defensive styles below 760px are resilience behavior only.
+
+**The Evidence Gets the Width Rule.** Retinal images, comparisons, feature maps, and transformation traces take priority over explanatory prose in horizontal space.
+
+## Elevation & Depth
+
+The system is flat and layered, with borders and tonal surface changes doing most of the depth work. White evidence cards rest directly on the pale canvas behind a structural line; they do not float. Shadows are limited to the sticky top bar, primary actions, switch thumb, active feature tab, comparison divider, and small status glows where physical feedback matters.
+
+### Shadow Vocabulary
+
+- **Top-Bar Ambient** (`0 8px 24px rgba(23,61,50,.06)`): A quiet separation between fixed chrome and scrolling evidence.
+- **Primary Action** (`0 8px 18px rgba(11,87,63,.17)`): Resting lift for the upload action; increase only on hover.
+- **Selected Tab** (`0 3px 8px rgba(21,83,62,.08)`): Minimal lift that distinguishes the selected feature stage from the mint tab track.
+
+### Named Rules
+
+**The Flat Evidence Rule.** Evidence cards are bordered, not elevated. Shadow is feedback for chrome or interaction, never decoration around model output.
+
+## Shapes
+
+Rounded rectangles are consistent and modest. Major evidence cards and grouped data containers use the shared 14px surface radius; controls use 10px; image wells use 11px; feature thumbnails use 7px; the upload well uses 18px; badges, toggles, progress tracks, and circular stage markers use fully rounded geometry.
+
+Borders remain one pixel and low contrast. Dark image wells may clip real imagery to a rounded frame, but the image itself stays uncropped through `object-fit: contain`. The only circular forms are status markers, toggle thumbs, the comparison handle, and small progress or session indicators.
+
+**The Soft Frame, Honest Image Rule.** Round the container, not the evidence: never crop, mask, recolor, or beautify retinal imagery merely to match the interface silhouette.
+
+## Components
+
+### Buttons
+
+- **Shape:** Compact rounded control, 40px minimum height and 10px corners.
+- **Primary:** Retinal Forest with white text, 16px horizontal padding, and a small action shadow. Use for uploading or the single highest-priority action in the frame.
+- **Hover / Focus:** Deepen to Retinal Forest Deep, lift by 1px, and preserve the shared 3px translucent green focus outline with 3px offset.
+- **Disabled:** Lower opacity and communicate waiting state without changing layout.
+
+### Toggle
+
+- **Style:** A 39 × 22px pill track with a 16px white thumb. Checked state uses Retinal Forest; unchecked state uses a muted green-gray.
+- **Behavior:** Pair the control with the explicit “Explainability Mode” label. Turning it off replaces feature imagery with an explanatory paused state; it must never imply that predictions changed.
+
+### Navigation
+
+- **Style:** The desktop sidebar uses 43px rows, 10px corners, an icon-plus-label structure, and muted text at rest.
+- **State:** Hover uses a pale green wash. The active destination is a solid Retinal Forest row with white content.
+- **Context:** Keep “Local session” and “Your image stays on this device” visible at the sidebar base on desktop.
+
+### Pipeline Rail
+
+- **Structure:** Six equal stages inside one 14px white container with subtle vertical dividers.
+- **State:** Completed markers are solid green with checks; the selected stage gets a pale mint field; errors use the error pair; unavailable stages remain neutral and disabled.
+- **Copy:** Every stage includes a model or processing description, such as EfficientNet-B0, NAFNet, ConvNeXt, or UNet++, wherever that provenance is known.
+
+### Cards / Containers
+
+- **Corner Style:** Major cards use 14px corners; nested information surfaces use 9–12px corners.
+- **Background:** Paper White for evidence, Clinical Mint for context and provenance, and dark green-black wells for image contrast.
+- **Shadow Strategy:** Follow the Flat Evidence Rule.
+- **Border:** One-pixel Structural Line around major evidence groups.
+- **Internal Padding:** 14px for compact evidence cards; 17–22px for wider result and explanatory groups.
+
+### Notices
+
+- **Research safeguard:** Caution Wash with amber text and icon, positioned before analysis content or immediately after the evidence it limits.
+- **Error:** Error Wash with red text and an optional dismiss action.
+- **Progress:** Clinical Mint with a compact green spinner and a concrete pipeline sequence.
+
+### Image Comparison
+
+The restoration card uses a horizontal range control over two contained versions of the same image. A white vertical divider, circular green handle, and Before/After tags reveal the relationship without implying clinical improvement. The adjacent metadata must state dimensions and that visualization hooks did not alter the prediction.
+
+### Feature Maps and Transformation Rail
+
+Feature maps are organized as five selectable stages—Encoder 1, Encoder 2, Bottleneck, Decoder 1, and Decoder 2—with up to eight representative grayscale channels. Each selected stage shows layer name, displayed/total channels, tensor dimensions, and a conservative explanation. Channels are independently normalized for display and must be described as internal model responses, not direct pathology maps.
+
+The separate transformation rail uses one representative channel to explain the real forward sequence from input to restored output. It is a provenance diagram, not a causal or lesion-localization claim.
+
+## Do's and Don'ts
+
+### Do:
+
+- **Do** keep the six-stage rail visible above completed-stage content on desktop.
+- **Do** keep model names, device state, tensor dimensions, channel counts, normalization, and checkpoint limitations beside the relevant artifact.
+- **Do** render source and restored retinal images contained within dark wells so the full image remains inspectable.
+- **Do** describe feature maps as normalized internal activations and Grad-CAM as attention, never as proof of pathology.
+- **Do** repeat research-only and clinician-review safeguards wherever a result could be over-interpreted.
+- **Do** preserve semantic controls, descriptive alternative text, and the visible shared focus treatment.
+
+### Don't:
+
+- **Don't** present RetinaGram as a diagnostic device or invent performance, pathology, or treatment claims.
+- **Don't** imply that generic SIDD-trained NAFNet restoration is retinal-trained clinical enhancement.
+- **Don't** crop, retouch, recolor, or selectively emphasize retinal evidence to make a result look more convincing.
+- **Don't** turn the calm cream, white, mint, and green system into a dark theme, saturated dashboard, or neon AI aesthetic.
+- **Don't** use shadow as a default card treatment or replace quiet borders with heavy chrome.
+- **Don't** describe narrow-width fallback CSS as a supported mobile experience; the current design contract is desktop/PC-only.

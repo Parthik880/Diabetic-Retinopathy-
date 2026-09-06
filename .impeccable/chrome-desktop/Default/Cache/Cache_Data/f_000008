@@ -1,0 +1,523 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/NafNetView.tsx");const _jsxDEV = __vite__cjsImport4_react_jsxDevRuntime["jsxDEV"];import { Contrast, Expand, Focus, ScanLine, ShieldCheck, Sparkles } from "/node_modules/.vite/deps/lucide-react.js?v=d0b641f8";
+import { assetUrl } from "/src/api.ts?t=1788697943585";
+import { FeatureMapPanel } from "/src/components/FeatureMapPanel.tsx?t=1788697943585";
+import { ImageComparison } from "/src/components/ImageComparison.tsx";
+var _jsxFileName = "C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/NafNetView.tsx";
+import __vite__cjsImport4_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=72d546b5";
+const flow = [
+	["Input", "input"],
+	["Encoder Block 1", "encoder_1"],
+	["Encoder Block 2", "encoder_2"],
+	["Bottleneck", "bottleneck"],
+	["Decoder Block 1", "decoder_1"],
+	["Decoder Block 2", "decoder_2"],
+	["Restored Output", "output"]
+];
+export function NafNetView({ result, explainability }) {
+	const input = assetUrl(result.input_image_url);
+	const restored = assetUrl(result.restoration?.output_image_url);
+	const quality = result.quality;
+	return /* @__PURE__ */ _jsxDEV("div", {
+		className: "nafnet-view",
+		children: [
+			/* @__PURE__ */ _jsxDEV("div", {
+				className: "stage-heading",
+				children: [/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("h1", { children: "NAFNet Image Restoration" }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 29,
+					columnNumber: 14
+				}, this), /* @__PURE__ */ _jsxDEV("p", { children: "Removes noise, enhances details and restores the retinal image for better downstream analysis." }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 29,
+					columnNumber: 47
+				}, this)] }, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 29,
+					columnNumber: 9
+				}, this), /* @__PURE__ */ _jsxDEV("span", {
+					className: "stage-badge",
+					children: ["Stage 3 · ", result.device.toUpperCase()]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 30,
+					columnNumber: 9
+				}, this)]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 28,
+				columnNumber: 7
+			}, this),
+			/* @__PURE__ */ _jsxDEV("section", {
+				className: "why-strip",
+				children: [/* @__PURE__ */ _jsxDEV("div", {
+					className: "why-mark",
+					children: /* @__PURE__ */ _jsxDEV(Sparkles, { size: 21 }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 34,
+						columnNumber: 35
+					}, this)
+				}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 34,
+					columnNumber: 9
+				}, this), /* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("h2", { children: "Why this step matters" }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 35,
+					columnNumber: 14
+				}, this), /* @__PURE__ */ _jsxDEV("p", { children: "Restoration can make low-contrast structures easier for later models to process. This checkpoint is generic SIDD denoising—not retinal-trained—so its output should be inspected, not treated as clinical enhancement." }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 35,
+					columnNumber: 44
+				}, this)] }, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 35,
+					columnNumber: 9
+				}, this)]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 33,
+				columnNumber: 7
+			}, this),
+			/* @__PURE__ */ _jsxDEV("div", {
+				className: "inspection-grid",
+				children: [
+					/* @__PURE__ */ _jsxDEV("article", {
+						className: "image-card",
+						children: [
+							/* @__PURE__ */ _jsxDEV("div", {
+								className: "card-heading",
+								children: [/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("span", { children: "Source" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 40,
+									columnNumber: 46
+								}, this), /* @__PURE__ */ _jsxDEV("h2", { children: "Input Image" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 40,
+									columnNumber: 65
+								}, this)] }, void 0, true, {
+									fileName: _jsxFileName,
+									lineNumber: 40,
+									columnNumber: 41
+								}, this), /* @__PURE__ */ _jsxDEV("a", {
+									href: input,
+									target: "_blank",
+									rel: "noreferrer",
+									"aria-label": "Open input image full size",
+									children: /* @__PURE__ */ _jsxDEV(Expand, { size: 17 }, void 0, false, {
+										fileName: _jsxFileName,
+										lineNumber: 40,
+										columnNumber: 180
+									}, this)
+								}, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 40,
+									columnNumber: 91
+								}, this)]
+							}, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 40,
+								columnNumber: 11
+							}, this),
+							/* @__PURE__ */ _jsxDEV("div", {
+								className: "image-well",
+								children: /* @__PURE__ */ _jsxDEV("img", {
+									src: input,
+									alt: "Uploaded retinal input"
+								}, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 41,
+									columnNumber: 39
+								}, this)
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 41,
+								columnNumber: 11
+							}, this),
+							/* @__PURE__ */ _jsxDEV("div", {
+								className: `quality-line ${quality?.quality.toLowerCase() ?? "unknown"}`,
+								children: [/* @__PURE__ */ _jsxDEV(ScanLine, { size: 17 }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 42,
+									columnNumber: 90
+								}, this), /* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: quality ? `${quality.quality} quality` : "Quality unavailable" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 42,
+									columnNumber: 118
+								}, this), quality ? `${Math.round(quality.confidence * 100)}% model confidence` : "See stage details"] }, void 0, true, {
+									fileName: _jsxFileName,
+									lineNumber: 42,
+									columnNumber: 112
+								}, this)]
+							}, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 42,
+								columnNumber: 11
+							}, this)
+						]
+					}, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 39,
+						columnNumber: 9
+					}, this),
+					/* @__PURE__ */ _jsxDEV("article", {
+						className: "image-card restored-card",
+						children: [
+							/* @__PURE__ */ _jsxDEV("div", {
+								className: "card-heading",
+								children: [/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("span", { children: "NAFNet output" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 46,
+									columnNumber: 46
+								}, this), /* @__PURE__ */ _jsxDEV("h2", { children: "Restored Image" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 46,
+									columnNumber: 72
+								}, this)] }, void 0, true, {
+									fileName: _jsxFileName,
+									lineNumber: 46,
+									columnNumber: 41
+								}, this), restored && /* @__PURE__ */ _jsxDEV("a", {
+									href: restored,
+									target: "_blank",
+									rel: "noreferrer",
+									"aria-label": "Open restored image full size",
+									children: /* @__PURE__ */ _jsxDEV(Expand, { size: 17 }, void 0, false, {
+										fileName: _jsxFileName,
+										lineNumber: 46,
+										columnNumber: 209
+									}, this)
+								}, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 46,
+									columnNumber: 114
+								}, this)]
+							}, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 46,
+								columnNumber: 11
+							}, this),
+							restored ? /* @__PURE__ */ _jsxDEV(ImageComparison, {
+								before: input,
+								after: restored,
+								alt: "Retinal image"
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 47,
+								columnNumber: 23
+							}, this) : /* @__PURE__ */ _jsxDEV("div", {
+								className: "unavailable",
+								children: "Restoration output is unavailable for this run."
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 47,
+								columnNumber: 97
+							}, this),
+							/* @__PURE__ */ _jsxDEV("div", {
+								className: "restoration-meta",
+								children: [/* @__PURE__ */ _jsxDEV(ShieldCheck, { size: 16 }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 48,
+									columnNumber: 45
+								}, this), /* @__PURE__ */ _jsxDEV("span", { children: result.restoration ? `${result.restoration.width} × ${result.restoration.height} · prediction unchanged by visualization hooks` : "Original image used downstream" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 48,
+									columnNumber: 70
+								}, this)]
+							}, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 48,
+								columnNumber: 11
+							}, this)
+						]
+					}, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 45,
+						columnNumber: 9
+					}, this),
+					/* @__PURE__ */ _jsxDEV("article", {
+						className: "feature-card",
+						children: [/* @__PURE__ */ _jsxDEV("div", {
+							className: "card-heading",
+							children: [/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("span", { children: "Encoder → Decoder" }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 52,
+								columnNumber: 46
+							}, this), /* @__PURE__ */ _jsxDEV("h2", { children: "Feature Maps" }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 52,
+								columnNumber: 76
+							}, this)] }, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 52,
+								columnNumber: 41
+							}, this), /* @__PURE__ */ _jsxDEV("span", {
+								className: "mono-tag",
+								children: "8 channels"
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 52,
+								columnNumber: 103
+							}, this)]
+						}, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 52,
+							columnNumber: 11
+						}, this), explainability ? /* @__PURE__ */ _jsxDEV(FeatureMapPanel, { features: result.features }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 53,
+							columnNumber: 29
+						}, this) : /* @__PURE__ */ _jsxDEV("div", {
+							className: "explainability-off",
+							children: [
+								/* @__PURE__ */ _jsxDEV(Focus, { size: 28 }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 53,
+									columnNumber: 114
+								}, this),
+								/* @__PURE__ */ _jsxDEV("h3", { children: "Explainability is paused" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 53,
+									columnNumber: 133
+								}, this),
+								/* @__PURE__ */ _jsxDEV("p", { children: "Turn on Explainability Mode to inspect normalized activation channels." }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 53,
+									columnNumber: 166
+								}, this)
+							]
+						}, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 53,
+							columnNumber: 78
+						}, this)]
+					}, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 51,
+						columnNumber: 9
+					}, this)
+				]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 38,
+				columnNumber: 7
+			}, this),
+			explainability && /* @__PURE__ */ _jsxDEV("section", {
+				className: "transformations",
+				children: [/* @__PURE__ */ _jsxDEV("div", {
+					className: "section-heading",
+					children: [/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("h2", { children: "Intermediate transformations" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 59,
+						columnNumber: 49
+					}, this), /* @__PURE__ */ _jsxDEV("p", { children: "A representative channel traces the model’s real forward pass from source to restored output." }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 59,
+						columnNumber: 86
+					}, this)] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 59,
+						columnNumber: 44
+					}, this), /* @__PURE__ */ _jsxDEV("span", { children: "Grayscale · independently normalized" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 59,
+						columnNumber: 192
+					}, this)]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 59,
+					columnNumber: 11
+				}, this), /* @__PURE__ */ _jsxDEV("div", {
+					className: "flow-track",
+					children: flow.map(([label, key]) => {
+						const image = key === "input" ? input : key === "output" ? restored : assetUrl(result.features[key]?.images[0]);
+						return /* @__PURE__ */ _jsxDEV("div", {
+							className: "flow-node",
+							children: [/* @__PURE__ */ _jsxDEV("div", { children: image ? /* @__PURE__ */ _jsxDEV("img", {
+								src: image,
+								alt: `${label} representation`
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 63,
+								columnNumber: 73
+							}, this) : /* @__PURE__ */ _jsxDEV("span", {}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 63,
+								columnNumber: 127
+							}, this) }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 63,
+								columnNumber: 59
+							}, this), /* @__PURE__ */ _jsxDEV("strong", { children: label }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 63,
+								columnNumber: 142
+							}, this)]
+						}, key, true, {
+							fileName: _jsxFileName,
+							lineNumber: 63,
+							columnNumber: 22
+						}, this);
+					})
+				}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 60,
+					columnNumber: 11
+				}, this)]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 58,
+				columnNumber: 9
+			}, this),
+			/* @__PURE__ */ _jsxDEV("section", {
+				className: "improvements",
+				children: [/* @__PURE__ */ _jsxDEV("div", {
+					className: "section-heading",
+					children: /* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("h2", { children: "Key improvements" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 70,
+						columnNumber: 47
+					}, this), /* @__PURE__ */ _jsxDEV("p", { children: "What restoration is intended to support in the rest of the pipeline." }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 70,
+						columnNumber: 72
+					}, this)] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 70,
+						columnNumber: 42
+					}, this)
+				}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 70,
+					columnNumber: 9
+				}, this), /* @__PURE__ */ _jsxDEV("div", {
+					className: "improvement-list",
+					children: [
+						/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV(Sparkles, {}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 72,
+							columnNumber: 16
+						}, this), /* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: "Noise reduction" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 72,
+							columnNumber: 34
+						}, this), /* @__PURE__ */ _jsxDEV("small", { children: "Suppresses distracting sensor noise" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 72,
+							columnNumber: 66
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 72,
+							columnNumber: 28
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 72,
+							columnNumber: 11
+						}, this),
+						/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV(Contrast, {}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 73,
+							columnNumber: 16
+						}, this), /* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: "Better contrast" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 73,
+							columnNumber: 34
+						}, this), /* @__PURE__ */ _jsxDEV("small", { children: "Clarifies local tonal differences" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 73,
+							columnNumber: 66
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 73,
+							columnNumber: 28
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 73,
+							columnNumber: 11
+						}, this),
+						/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV(Focus, {}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 74,
+							columnNumber: 16
+						}, this), /* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: "Preserves structures" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 74,
+							columnNumber: 31
+						}, this), /* @__PURE__ */ _jsxDEV("small", { children: "Residual reconstruction retains anatomy" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 74,
+							columnNumber: 68
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 74,
+							columnNumber: 25
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 74,
+							columnNumber: 11
+						}, this),
+						/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV(ShieldCheck, {}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 75,
+							columnNumber: 16
+						}, this), /* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: "Downstream readiness" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 75,
+							columnNumber: 37
+						}, this), /* @__PURE__ */ _jsxDEV("small", { children: "Provides a cleaner candidate input" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 75,
+							columnNumber: 74
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 75,
+							columnNumber: 31
+						}, this)] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 75,
+							columnNumber: 11
+						}, this)
+					]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 71,
+					columnNumber: 9
+				}, this)]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 69,
+				columnNumber: 7
+			}, this)
+		]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 27,
+		columnNumber: 5
+	}, this);
+}
+_c = NafNetView;
+var _c;
+$RefreshReg$(_c, "NafNetView");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+import * as __vite_react_currentExports from "/src/components/NafNetView.tsx?t=1788697943585";
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+
+  const currentExports = __vite_react_currentExports;
+  queueMicrotask(() => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/NafNetView.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/NafNetView.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) { return RefreshRuntime.register(type, "C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/NafNetView.tsx" + ' ' + id); }
+function $RefreshSig$() { return RefreshRuntime.createSignatureFunctionForTransform(); }
+
+//# sourceMappingURL=data:application/json;base64,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Ozs7O2NBQU07Ozs7O01BQzNILHdCQUFDLE9BQUQsYUFBSyx3QkFBQyxhQUFELENBQWM7Ozs7Z0JBQUMsd0JBQUMsUUFBRCxhQUFNLHdCQUFDLFVBQUQsWUFBUSx1QkFBNEI7Ozs7Z0JBQUMsd0JBQUMsU0FBRCxZQUFPLHFDQUF5Qzs7OztjQUFPOzs7O2NBQU07Ozs7O0tBQ3pIOzs7OztZQUNFOzs7Ozs7RUFDTjs7Ozs7O0FBRVQiLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiTmFmTmV0Vmlldy50c3giXSwidmVyc2lvbiI6Mywic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQ29udHJhc3QsIEV4cGFuZCwgRm9jdXMsIFNjYW5MaW5lLCBTaGllbGRDaGVjaywgU3BhcmtsZXMgfSBmcm9tIFwibHVjaWRlLXJlYWN0XCI7XG5pbXBvcnQgeyBhc3NldFVybCB9IGZyb20gXCIuLi9hcGlcIjtcbmltcG9ydCB0eXBlIHsgQW5hbHlzaXNSZXN1bHQgfSBmcm9tIFwiLi4vdHlwZXNcIjtcbmltcG9ydCB7IEZlYXR1cmVNYXBQYW5lbCB9IGZyb20gXCIuL0ZlYXR1cmVNYXBQYW5lbFwiO1xuaW1wb3J0IHsgSW1hZ2VDb21wYXJpc29uIH0gZnJvbSBcIi4vSW1hZ2VDb21wYXJpc29uXCI7XG5cbmludGVyZmFjZSBOYWZOZXRWaWV3UHJvcHMge1xuICByZXN1bHQ6IEFuYWx5c2lzUmVzdWx0O1xuICBleHBsYWluYWJpbGl0eTogYm9vbGVhbjtcbn1cblxuY29uc3QgZmxvdyA9IFtcbiAgW1wiSW5wdXRcIiwgXCJpbnB1dFwiXSxcbiAgW1wiRW5jb2RlciBCbG9jayAxXCIsIFwiZW5jb2Rlcl8xXCJdLFxuICBbXCJFbmNvZGVyIEJsb2NrIDJcIiwgXCJlbmNvZGVyXzJcIl0sXG4gIFtcIkJvdHRsZW5lY2tcIiwgXCJib3R0bGVuZWNrXCJdLFxuICBbXCJEZWNvZGVyIEJsb2NrIDFcIiwgXCJkZWNvZGVyXzFcIl0sXG4gIFtcIkRlY29kZXIgQmxvY2sgMlwiLCBcImRlY29kZXJfMlwiXSxcbiAgW1wiUmVzdG9yZWQgT3V0cHV0XCIsIFwib3V0cHV0XCJdLFxuXSBhcyBjb25zdDtcblxuZXhwb3J0IGZ1bmN0aW9uIE5hZk5ldFZpZXcoeyByZXN1bHQsIGV4cGxhaW5hYmlsaXR5IH06IE5hZk5ldFZpZXdQcm9wcykge1xuICBjb25zdCBpbnB1dCA9IGFzc2V0VXJsKHJlc3VsdC5pbnB1dF9pbWFnZV91cmwpO1xuICBjb25zdCByZXN0b3JlZCA9IGFzc2V0VXJsKHJlc3VsdC5yZXN0b3JhdGlvbj8ub3V0cHV0X2ltYWdlX3VybCk7XG4gIGNvbnN0IHF1YWxpdHkgPSByZXN1bHQucXVhbGl0eTtcbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cIm5hZm5ldC12aWV3XCI+XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cInN0YWdlLWhlYWRpbmdcIj5cbiAgICAgICAgPGRpdj48aDE+TkFGTmV0IEltYWdlIFJlc3RvcmF0aW9uPC9oMT48cD5SZW1vdmVzIG5vaXNlLCBlbmhhbmNlcyBkZXRhaWxzIGFuZCByZXN0b3JlcyB0aGUgcmV0aW5hbCBpbWFnZSBmb3IgYmV0dGVyIGRvd25zdHJlYW0gYW5hbHlzaXMuPC9wPjwvZGl2PlxuICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzdGFnZS1iYWRnZVwiPlN0YWdlIDMgwrcge3Jlc3VsdC5kZXZpY2UudG9VcHBlckNhc2UoKX08L3NwYW4+XG4gICAgICA8L2Rpdj5cblxuICAgICAgPHNlY3Rpb24gY2xhc3NOYW1lPVwid2h5LXN0cmlwXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwid2h5LW1hcmtcIj48U3BhcmtsZXMgc2l6ZT17MjF9IC8+PC9kaXY+XG4gICAgICAgIDxkaXY+PGgyPldoeSB0aGlzIHN0ZXAgbWF0dGVyczwvaDI+PHA+UmVzdG9yYXRpb24gY2FuIG1ha2UgbG93LWNvbnRyYXN0IHN0cnVjdHVyZXMgZWFzaWVyIGZvciBsYXRlciBtb2RlbHMgdG8gcHJvY2Vzcy4gVGhpcyBjaGVja3BvaW50IGlzIGdlbmVyaWMgU0lERCBkZW5vaXNpbmfigJRub3QgcmV0aW5hbC10cmFpbmVk4oCUc28gaXRzIG91dHB1dCBzaG91bGQgYmUgaW5zcGVjdGVkLCBub3QgdHJlYXRlZCBhcyBjbGluaWNhbCBlbmhhbmNlbWVudC48L3A+PC9kaXY+XG4gICAgICA8L3NlY3Rpb24+XG5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaW5zcGVjdGlvbi1ncmlkXCI+XG4gICAgICAgIDxhcnRpY2xlIGNsYXNzTmFtZT1cImltYWdlLWNhcmRcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImNhcmQtaGVhZGluZ1wiPjxkaXY+PHNwYW4+U291cmNlPC9zcGFuPjxoMj5JbnB1dCBJbWFnZTwvaDI+PC9kaXY+PGEgaHJlZj17aW5wdXR9IHRhcmdldD1cIl9ibGFua1wiIHJlbD1cIm5vcmVmZXJyZXJcIiBhcmlhLWxhYmVsPVwiT3BlbiBpbnB1dCBpbWFnZSBmdWxsIHNpemVcIj48RXhwYW5kIHNpemU9ezE3fSAvPjwvYT48L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImltYWdlLXdlbGxcIj48aW1nIHNyYz17aW5wdXR9IGFsdD1cIlVwbG9hZGVkIHJldGluYWwgaW5wdXRcIiAvPjwvZGl2PlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPXtgcXVhbGl0eS1saW5lICR7cXVhbGl0eT8ucXVhbGl0eS50b0xvd2VyQ2FzZSgpID8/IFwidW5rbm93blwifWB9PjxTY2FuTGluZSBzaXplPXsxN30gLz48c3Bhbj48c3Ryb25nPntxdWFsaXR5ID8gYCR7cXVhbGl0eS5xdWFsaXR5fSBxdWFsaXR5YCA6IFwiUXVhbGl0eSB1bmF2YWlsYWJsZVwifTwvc3Ryb25nPntxdWFsaXR5ID8gYCR7TWF0aC5yb3VuZChxdWFsaXR5LmNvbmZpZGVuY2UgKiAxMDApfSUgbW9kZWwgY29uZmlkZW5jZWAgOiBcIlNlZSBzdGFnZSBkZXRhaWxzXCJ9PC9zcGFuPjwvZGl2PlxuICAgICAgICA8L2FydGljbGU+XG5cbiAgICAgICAgPGFydGljbGUgY2xhc3NOYW1lPVwiaW1hZ2UtY2FyZCByZXN0b3JlZC1jYXJkXCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJjYXJkLWhlYWRpbmdcIj48ZGl2PjxzcGFuPk5BRk5ldCBvdXRwdXQ8L3NwYW4+PGgyPlJlc3RvcmVkIEltYWdlPC9oMj48L2Rpdj57cmVzdG9yZWQgJiYgPGEgaHJlZj17cmVzdG9yZWR9IHRhcmdldD1cIl9ibGFua1wiIHJlbD1cIm5vcmVmZXJyZXJcIiBhcmlhLWxhYmVsPVwiT3BlbiByZXN0b3JlZCBpbWFnZSBmdWxsIHNpemVcIj48RXhwYW5kIHNpemU9ezE3fSAvPjwvYT59PC9kaXY+XG4gICAgICAgICAge3Jlc3RvcmVkID8gPEltYWdlQ29tcGFyaXNvbiBiZWZvcmU9e2lucHV0fSBhZnRlcj17cmVzdG9yZWR9IGFsdD1cIlJldGluYWwgaW1hZ2VcIiAvPiA6IDxkaXYgY2xhc3NOYW1lPVwidW5hdmFpbGFibGVcIj5SZXN0b3JhdGlvbiBvdXRwdXQgaXMgdW5hdmFpbGFibGUgZm9yIHRoaXMgcnVuLjwvZGl2Pn1cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlc3RvcmF0aW9uLW1ldGFcIj48U2hpZWxkQ2hlY2sgc2l6ZT17MTZ9IC8+PHNwYW4+e3Jlc3VsdC5yZXN0b3JhdGlvbiA/IGAke3Jlc3VsdC5yZXN0b3JhdGlvbi53aWR0aH0gw5cgJHtyZXN1bHQucmVzdG9yYXRpb24uaGVpZ2h0fSDCtyBwcmVkaWN0aW9uIHVuY2hhbmdlZCBieSB2aXN1YWxpemF0aW9uIGhvb2tzYCA6IFwiT3JpZ2luYWwgaW1hZ2UgdXNlZCBkb3duc3RyZWFtXCJ9PC9zcGFuPjwvZGl2PlxuICAgICAgICA8L2FydGljbGU+XG5cbiAgICAgICAgPGFydGljbGUgY2xhc3NOYW1lPVwiZmVhdHVyZS1jYXJkXCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJjYXJkLWhlYWRpbmdcIj48ZGl2PjxzcGFuPkVuY29kZXIg4oaSIERlY29kZXI8L3NwYW4+PGgyPkZlYXR1cmUgTWFwczwvaDI+PC9kaXY+PHNwYW4gY2xhc3NOYW1lPVwibW9uby10YWdcIj44IGNoYW5uZWxzPC9zcGFuPjwvZGl2PlxuICAgICAgICAgIHtleHBsYWluYWJpbGl0eSA/IDxGZWF0dXJlTWFwUGFuZWwgZmVhdHVyZXM9e3Jlc3VsdC5mZWF0dXJlc30gLz4gOiA8ZGl2IGNsYXNzTmFtZT1cImV4cGxhaW5hYmlsaXR5LW9mZlwiPjxGb2N1cyBzaXplPXsyOH0gLz48aDM+RXhwbGFpbmFiaWxpdHkgaXMgcGF1c2VkPC9oMz48cD5UdXJuIG9uIEV4cGxhaW5hYmlsaXR5IE1vZGUgdG8gaW5zcGVjdCBub3JtYWxpemVkIGFjdGl2YXRpb24gY2hhbm5lbHMuPC9wPjwvZGl2Pn1cbiAgICAgICAgPC9hcnRpY2xlPlxuICAgICAgPC9kaXY+XG5cbiAgICAgIHtleHBsYWluYWJpbGl0eSAmJiAoXG4gICAgICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cInRyYW5zZm9ybWF0aW9uc1wiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2VjdGlvbi1oZWFkaW5nXCI+PGRpdj48aDI+SW50ZXJtZWRpYXRlIHRyYW5zZm9ybWF0aW9uczwvaDI+PHA+QSByZXByZXNlbnRhdGl2ZSBjaGFubmVsIHRyYWNlcyB0aGUgbW9kZWzigJlzIHJlYWwgZm9yd2FyZCBwYXNzIGZyb20gc291cmNlIHRvIHJlc3RvcmVkIG91dHB1dC48L3A+PC9kaXY+PHNwYW4+R3JheXNjYWxlIMK3IGluZGVwZW5kZW50bHkgbm9ybWFsaXplZDwvc3Bhbj48L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsb3ctdHJhY2tcIj5cbiAgICAgICAgICAgIHtmbG93Lm1hcCgoW2xhYmVsLCBrZXldKSA9PiB7XG4gICAgICAgICAgICAgIGNvbnN0IGltYWdlID0ga2V5ID09PSBcImlucHV0XCIgPyBpbnB1dCA6IGtleSA9PT0gXCJvdXRwdXRcIiA/IHJlc3RvcmVkIDogYXNzZXRVcmwocmVzdWx0LmZlYXR1cmVzW2tleV0/LmltYWdlc1swXSk7XG4gICAgICAgICAgICAgIHJldHVybiA8ZGl2IGNsYXNzTmFtZT1cImZsb3ctbm9kZVwiIGtleT17a2V5fT48ZGl2PntpbWFnZSA/IDxpbWcgc3JjPXtpbWFnZX0gYWx0PXtgJHtsYWJlbH0gcmVwcmVzZW50YXRpb25gfSAvPiA6IDxzcGFuIC8+fTwvZGl2PjxzdHJvbmc+e2xhYmVsfTwvc3Ryb25nPjwvZGl2PjtcbiAgICAgICAgICAgIH0pfVxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L3NlY3Rpb24+XG4gICAgICApfVxuXG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJpbXByb3ZlbWVudHNcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZWN0aW9uLWhlYWRpbmdcIj48ZGl2PjxoMj5LZXkgaW1wcm92ZW1lbnRzPC9oMj48cD5XaGF0IHJlc3RvcmF0aW9uIGlzIGludGVuZGVkIHRvIHN1cHBvcnQgaW4gdGhlIHJlc3Qgb2YgdGhlIHBpcGVsaW5lLjwvcD48L2Rpdj48L2Rpdj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJpbXByb3ZlbWVudC1saXN0XCI+XG4gICAgICAgICAgPGRpdj48U3BhcmtsZXMgLz48c3Bhbj48c3Ryb25nPk5vaXNlIHJlZHVjdGlvbjwvc3Ryb25nPjxzbWFsbD5TdXBwcmVzc2VzIGRpc3RyYWN0aW5nIHNlbnNvciBub2lzZTwvc21hbGw+PC9zcGFuPjwvZGl2PlxuICAgICAgICAgIDxkaXY+PENvbnRyYXN0IC8+PHNwYW4+PHN0cm9uZz5CZXR0ZXIgY29udHJhc3Q8L3N0cm9uZz48c21hbGw+Q2xhcmlmaWVzIGxvY2FsIHRvbmFsIGRpZmZlcmVuY2VzPC9zbWFsbD48L3NwYW4+PC9kaXY+XG4gICAgICAgICAgPGRpdj48Rm9jdXMgLz48c3Bhbj48c3Ryb25nPlByZXNlcnZlcyBzdHJ1Y3R1cmVzPC9zdHJvbmc+PHNtYWxsPlJlc2lkdWFsIHJlY29uc3RydWN0aW9uIHJldGFpbnMgYW5hdG9teTwvc21hbGw+PC9zcGFuPjwvZGl2PlxuICAgICAgICAgIDxkaXY+PFNoaWVsZENoZWNrIC8+PHNwYW4+PHN0cm9uZz5Eb3duc3RyZWFtIHJlYWRpbmVzczwvc3Ryb25nPjxzbWFsbD5Qcm92aWRlcyBhIGNsZWFuZXIgY2FuZGlkYXRlIGlucHV0PC9zbWFsbD48L3NwYW4+PC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9zZWN0aW9uPlxuICAgIDwvZGl2PlxuICApO1xufVxuIl19

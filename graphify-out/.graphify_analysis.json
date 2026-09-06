@@ -1,0 +1,470 @@
+{
+  "communities": {
+    "0": [
+      "inference_lesion_inference",
+      "inference_lesion_inference_main",
+      "inference_lesion_inference_parse_args",
+      "inference_lesion_inference_py_namespace",
+      "inference_lesion_inference_rationale_1",
+      "models_lesion_init",
+      "models_lesion_init_rationale_1",
+      "models_lesion_postprocess",
+      "models_lesion_postprocess_extract_predicted_regions",
+      "models_lesion_postprocess_normalized",
+      "models_lesion_postprocess_py_ndarray",
+      "models_lesion_postprocess_rationale_1",
+      "models_lesion_postprocess_rationale_13",
+      "models_lesion_postprocess_rationale_23",
+      "models_lesion_predict",
+      "models_lesion_predict_load_original_rgb",
+      "models_lesion_predict_predict_lesions",
+      "models_lesion_predict_preprocess_lesion_image",
+      "models_lesion_predict_py_device",
+      "models_lesion_predict_py_ndarray",
+      "models_lesion_predict_py_path",
+      "models_lesion_predict_py_tensor",
+      "models_lesion_predict_rationale_1",
+      "models_lesion_predict_rationale_55",
+      "models_lesion_predict_rationale_94",
+      "models_lesion_predict_unique_run_stem",
+      "models_lesion_predict_validate_image",
+      "models_lesion_visualization",
+      "models_lesion_visualization_blend_lesion_masks",
+      "models_lesion_visualization_create_bounding_box_image",
+      "models_lesion_visualization_create_center_image",
+      "models_lesion_visualization_gradcam_overlay_array",
+      "models_lesion_visualization_line_width",
+      "models_lesion_visualization_py_ndarray",
+      "models_lesion_visualization_py_path",
+      "models_lesion_visualization_rationale_1",
+      "models_lesion_visualization_rationale_32",
+      "models_lesion_visualization_save_analysis_dashboard",
+      "models_lesion_visualization_save_binary_mask",
+      "models_lesion_visualization_save_combined_overlay",
+      "models_lesion_visualization_save_gradcam_overlay",
+      "models_lesion_visualization_save_probability_map"
+    ],
+    "1": [
+      "inference_restoration_inference",
+      "inference_restoration_inference_main",
+      "inference_restoration_inference_parse_args",
+      "inference_restoration_inference_py_namespace",
+      "inference_restoration_inference_rationale_1",
+      "models_checkpoints",
+      "models_checkpoints_checkpoint_path",
+      "models_checkpoints_checkpoint_root",
+      "models_checkpoints_py_path",
+      "models_checkpoints_rationale_1",
+      "models_checkpoints_rationale_14",
+      "models_checkpoints_rationale_21",
+      "models_restoration_init",
+      "models_restoration_init_rationale_1",
+      "models_restoration_model",
+      "models_restoration_model_build_restoration_model",
+      "models_restoration_model_load_restoration_model",
+      "models_restoration_model_py_device",
+      "models_restoration_model_py_path",
+      "models_restoration_model_py_tensor",
+      "models_restoration_model_rationale_1",
+      "models_restoration_model_rationale_37",
+      "models_restoration_model_rationale_60",
+      "models_restoration_model_resolve_device",
+      "models_restoration_model_select_state_dict",
+      "models_restoration_nafnet_nafnet_arch_nafnet",
+      "models_restoration_nafnet_nafnet_arch_nafnet_check_image_size",
+      "models_restoration_nafnet_nafnet_arch_nafnet_forward",
+      "models_restoration_predict",
+      "models_restoration_predict_next_output_path",
+      "models_restoration_predict_py_device",
+      "models_restoration_predict_py_path",
+      "models_restoration_predict_rationale_1",
+      "models_restoration_predict_rationale_59",
+      "models_restoration_predict_restore_image",
+      "models_restoration_predict_validate_image"
+    ],
+    "2": [
+      "image",
+      "inference_iqa_inference",
+      "inference_iqa_inference_main",
+      "inference_iqa_inference_parse_args",
+      "inference_iqa_inference_py_namespace",
+      "inference_iqa_inference_rationale_1",
+      "inference_mode",
+      "iqamodel",
+      "models_iqa_inference",
+      "models_iqa_inference_efficientnetiqaservice",
+      "models_iqa_inference_efficientnetiqaservice_init",
+      "models_iqa_inference_efficientnetiqaservice_predict",
+      "models_iqa_inference_py_device",
+      "models_iqa_inference_py_path",
+      "models_iqa_inference_rationale_1",
+      "models_iqa_inference_rationale_19",
+      "models_iqa_init",
+      "models_iqa_init_rationale_1",
+      "models_iqa_model",
+      "models_iqa_model_efficientnetiqa",
+      "models_iqa_model_efficientnetiqa_forward",
+      "models_iqa_model_efficientnetiqa_init",
+      "models_iqa_model_getattr",
+      "models_iqa_model_rationale_1",
+      "models_iqa_predict",
+      "models_iqa_predict_cached_model",
+      "models_iqa_predict_predict_iqa",
+      "models_iqa_predict_py_device",
+      "models_iqa_predict_py_path",
+      "models_iqa_predict_rationale_1",
+      "models_iqa_predict_rationale_49",
+      "models_iqa_predict_validate_image"
+    ],
+    "3": [
+      "inference_grade_inference",
+      "inference_grade_inference_main",
+      "inference_grade_inference_parse_args",
+      "inference_grade_inference_py_namespace",
+      "inference_grade_inference_rationale_1",
+      "models_grade_init",
+      "models_grade_init_rationale_1",
+      "models_grade_model",
+      "models_grade_model_convextnet",
+      "models_grade_model_convextnet_forward",
+      "models_grade_model_convextnet_init",
+      "models_grade_model_load_checkpoint",
+      "models_grade_model_load_grade_model",
+      "models_grade_model_py_device",
+      "models_grade_model_py_path",
+      "models_grade_model_py_tensor",
+      "models_grade_model_rationale_1",
+      "models_grade_model_rationale_110",
+      "models_grade_model_rationale_18",
+      "models_grade_model_rationale_30",
+      "models_grade_model_resolve_device",
+      "models_grade_predict",
+      "models_grade_predict_next_gradcam_path",
+      "models_grade_predict_predict_grade",
+      "models_grade_predict_preprocess_grade_image",
+      "models_grade_predict_py_device",
+      "models_grade_predict_py_path",
+      "models_grade_predict_py_tensor",
+      "models_grade_predict_rationale_1",
+      "models_grade_predict_rationale_101",
+      "models_grade_predict_save_gradcam_overlay",
+      "models_grade_predict_validate_image"
+    ],
+    "4": [
+      "models_iqa_readme_calibrated_checkpoint",
+      "models_iqa_readme_class_mapping_0_good_1_usable_2_reject",
+      "models_iqa_readme_conflicting_class_mapping_0_reject_1_usable_2_good",
+      "models_iqa_readme_efficientnet_b0",
+      "models_iqa_readme_image_quality_assessment",
+      "models_iqa_readme_netragram_iqa_module",
+      "models_iqa_readme_preprocessing_consistency",
+      "models_iqa_readme_quality_routing",
+      "models_restoration_readme_license_attribution",
+      "models_restoration_readme_nafnet_restoration",
+      "models_restoration_readme_retinal_training_setup",
+      "models_restoration_readme_sidd_checkpoint",
+      "models_restoration_readme_upstream_nafnet",
+      "models_restoration_readme_width_32_configuration",
+      "readme_convnext_tiny",
+      "readme_dr_grade_classification",
+      "readme_efficientnet_iqa",
+      "readme_final_application_output",
+      "readme_fundus_image",
+      "readme_image_quality_assessment",
+      "readme_lesion_localization_outputs",
+      "readme_lesion_segmentation",
+      "readme_nafnet_restoration",
+      "readme_optional_restoration",
+      "readme_retinal_ai_model_pipeline",
+      "readme_selected_retinal_image",
+      "readme_temperature_calibration",
+      "whatsapp_image_2026_09_05_at_19_35_33_eye_leaf_landscape_icon",
+      "whatsapp_image_2026_09_05_at_19_35_33_eye_motif",
+      "whatsapp_image_2026_09_05_at_19_35_33_green_landscape_motif"
+    ],
+    "5": [
+      "models_lesion_gradcam",
+      "models_lesion_gradcam_py_ndarray",
+      "models_lesion_gradcam_py_tensor",
+      "models_lesion_gradcam_rationale_1",
+      "models_lesion_gradcam_rationale_19",
+      "models_lesion_gradcam_rationale_37",
+      "models_lesion_gradcam_segmentationgradcam",
+      "models_lesion_gradcam_segmentationgradcam_capture_activations",
+      "models_lesion_gradcam_segmentationgradcam_close",
+      "models_lesion_gradcam_segmentationgradcam_generate",
+      "models_lesion_gradcam_segmentationgradcam_init",
+      "models_lesion_model",
+      "models_lesion_model_convblock",
+      "models_lesion_model_convblock_forward",
+      "models_lesion_model_convblock_init",
+      "models_lesion_model_lesionunetplusplus",
+      "models_lesion_model_lesionunetplusplus_forward",
+      "models_lesion_model_lesionunetplusplus_init",
+      "models_lesion_model_lesionunetplusplus_upsample",
+      "models_lesion_model_load_lesion_model",
+      "models_lesion_model_model_state_dict",
+      "models_lesion_model_py_device",
+      "models_lesion_model_py_path",
+      "models_lesion_model_py_tensor",
+      "models_lesion_model_rationale_1",
+      "models_lesion_model_rationale_141",
+      "models_lesion_model_rationale_44",
+      "models_lesion_model_resolve_device"
+    ],
+    "6": [
+      "models_restoration_nafnet_arch_util",
+      "models_restoration_nafnet_arch_util_layernorm2d",
+      "models_restoration_nafnet_arch_util_layernorm2d_forward",
+      "models_restoration_nafnet_arch_util_layernorm2d_init",
+      "models_restoration_nafnet_arch_util_layernormfunction",
+      "models_restoration_nafnet_arch_util_layernormfunction_backward",
+      "models_restoration_nafnet_arch_util_layernormfunction_forward",
+      "models_restoration_nafnet_init",
+      "models_restoration_nafnet_init_rationale_1",
+      "models_restoration_nafnet_local_arch",
+      "models_restoration_nafnet_local_arch_avgpool2d",
+      "models_restoration_nafnet_local_arch_avgpool2d_extra_repr",
+      "models_restoration_nafnet_local_arch_avgpool2d_forward",
+      "models_restoration_nafnet_local_arch_avgpool2d_init",
+      "models_restoration_nafnet_local_arch_local_base",
+      "models_restoration_nafnet_local_arch_local_base_convert",
+      "models_restoration_nafnet_local_arch_replace_layers",
+      "models_restoration_nafnet_nafnet_arch",
+      "models_restoration_nafnet_nafnet_arch_nafblock",
+      "models_restoration_nafnet_nafnet_arch_nafblock_forward",
+      "models_restoration_nafnet_nafnet_arch_nafblock_init",
+      "models_restoration_nafnet_nafnet_arch_nafnet_init",
+      "models_restoration_nafnet_nafnet_arch_nafnetlocal",
+      "models_restoration_nafnet_nafnet_arch_nafnetlocal_init",
+      "models_restoration_nafnet_nafnet_arch_simplegate",
+      "models_restoration_nafnet_nafnet_arch_simplegate_forward"
+    ],
+    "7": [
+      "models_lesion_readme_annotation_validation",
+      "models_lesion_readme_authoritative_csv_mapping",
+      "models_lesion_readme_best_dice_checkpoint",
+      "models_lesion_readme_channel_mapping",
+      "models_lesion_readme_connected_component_filtering",
+      "models_lesion_readme_external_tiff_annotations",
+      "models_lesion_readme_grad_cam",
+      "models_lesion_readme_lesion_artifacts",
+      "models_lesion_readme_mobilenetv3_large_unetplusplus",
+      "models_lesion_readme_original_coordinate_thresholding",
+      "models_lesion_readme_predicted_region_metadata",
+      "models_lesion_readme_unetplusplus_lesion_inference",
+      "readme_lesion_classes",
+      "readme_mobilenetv3_unetplusplus",
+      "requirements_matplotlib",
+      "requirements_numpy",
+      "requirements_pandas",
+      "requirements_pillow",
+      "requirements_runtime_dependencies",
+      "requirements_scipy",
+      "requirements_torch",
+      "requirements_torchvision"
+    ],
+    "8": [
+      "dataset",
+      "inference_verify_lesion_annotations",
+      "inference_verify_lesion_annotations_inspect_pair",
+      "inference_verify_lesion_annotations_main",
+      "inference_verify_lesion_annotations_rationale_1",
+      "models_lesion_dataset",
+      "models_lesion_dataset_ddrlesiondataset",
+      "models_lesion_dataset_ddrlesiondataset_getitem",
+      "models_lesion_dataset_ddrlesiondataset_init",
+      "models_lesion_dataset_ddrlesiondataset_len",
+      "models_lesion_dataset_ddrlesiondataset_load_mask",
+      "models_lesion_dataset_rationale_1",
+      "models_lesion_dataset_rationale_22",
+      "models_lesion_dataset_rationale_68",
+      "models_lesion_dataset_read_annotation"
+    ],
+    "9": [
+      "models_grade_gradcam",
+      "models_grade_gradcam_find_gradcam_target_layer",
+      "models_grade_gradcam_gradcam",
+      "models_grade_gradcam_gradcam_generate",
+      "models_grade_gradcam_gradcam_init",
+      "models_grade_gradcam_gradcam_remove_hooks",
+      "models_grade_gradcam_gradcam_save_activations",
+      "models_grade_gradcam_gradcam_save_gradients",
+      "models_grade_gradcam_rationale_1",
+      "models_grade_gradcam_rationale_8"
+    ],
+    "10": [
+      "inference_init",
+      "inference_init_rationale_1"
+    ],
+    "11": [
+      "models_init",
+      "models_init_rationale_1"
+    ],
+    "12": [
+      "models_iqa_readme_iqa_performance",
+      "models_iqa_readme_usable_class_weakness"
+    ]
+  },
+  "cohesion": {
+    "0": 0.10220673635307782,
+    "1": 0.09523809523809523,
+    "2": 0.1028225806451613,
+    "3": 0.11693548387096774,
+    "4": 0.08505747126436781,
+    "5": 0.09788359788359788,
+    "6": 0.11692307692307692,
+    "7": 0.09523809523809523,
+    "8": 0.20952380952380953,
+    "9": 0.2222222222222222,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0
+  },
+  "gods": [
+    {
+      "id": "models_lesion_predict_predict_lesions",
+      "label": "predict_lesions()",
+      "degree": 21
+    },
+    {
+      "id": "models_grade_predict_predict_grade",
+      "label": "predict_grade()",
+      "degree": 12
+    },
+    {
+      "id": "models_lesion_model_lesionunetplusplus",
+      "label": "LesionUNetPlusPlus",
+      "degree": 12
+    },
+    {
+      "id": "models_restoration_model_load_restoration_model",
+      "label": "load_restoration_model()",
+      "degree": 11
+    },
+    {
+      "id": "models_restoration_predict_restore_image",
+      "label": "restore_image()",
+      "degree": 11
+    },
+    {
+      "id": "models_grade_model_load_grade_model",
+      "label": "load_grade_model()",
+      "degree": 10
+    },
+    {
+      "id": "models_iqa_inference_efficientnetiqaservice",
+      "label": "EfficientNetIQAService",
+      "degree": 10
+    },
+    {
+      "id": "models_iqa_predict_predict_iqa",
+      "label": "predict_iqa()",
+      "degree": 10
+    },
+    {
+      "id": "models_lesion_model_load_lesion_model",
+      "label": "load_lesion_model()",
+      "degree": 10
+    },
+    {
+      "id": "models_restoration_nafnet_nafnet_arch_nafnet",
+      "label": "NAFNet",
+      "degree": 10
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Stylized Eye Motif",
+      "target": "Retinal AI Model Pipeline",
+      "source_files": [
+        "WhatsApp Image 2026-09-05 at 19.35.33.jpeg",
+        "README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (doc ↔ image); connects across different repos/directories; peripheral node `Stylized Eye Motif` unexpectedly reaches hub `Retinal AI Model Pipeline`"
+    },
+    {
+      "source": "Lesion Localization Outputs",
+      "target": "Lesion Masks Probability Maps and Visualizations",
+      "source_files": [
+        "README.md",
+        "models/lesion/README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Image Quality Assessment",
+      "target": "Fundus Image Quality Assessment",
+      "source_files": [
+        "README.md",
+        "models/iqa/README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "EfficientNet-B0 IQA Classifier",
+      "target": "EfficientNet-B0 IQA Model",
+      "source_files": [
+        "README.md",
+        "models/iqa/README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Width-32 NAFNet Restoration",
+      "target": "NAFNet Width-32 Configuration",
+      "source_files": [
+        "README.md",
+        "models/restoration/README.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link"
+    }
+  ],
+  "questions": [
+    {
+      "type": "ambiguous_edge",
+      "question": "What is the exact relationship between `IQA Mapping 0 Good 1 Usable 2 Reject` and `Conflicting Team Note Mapping 0 Reject 1 Usable 2 Good`?",
+      "why": "Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `checkpoint_path()` connect `Community 1` to `Community 3`?",
+      "why": "High betweenness centrality (0.038) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `NAFNet` connect `Community 1` to `Community 6`?",
+      "why": "High betweenness centrality (0.033) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `predict_lesions()` connect `Community 0` to `Community 5`?",
+      "why": "High betweenness centrality (0.019) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 2 inferred relationships involving `LesionUNetPlusPlus` (e.g. with `SegmentationGradCAM` and `predict_lesions()`) actually correct?",
+      "why": "`LesionUNetPlusPlus` has 2 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Temperature-Calibrated IQA Probabilities`, `ConvNeXt Tiny Grade Classifier`, `NETRAGRAM IQA Module` to the rest of the system?",
+      "why": "22 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10220673635307782 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

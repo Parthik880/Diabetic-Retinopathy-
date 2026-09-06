@@ -1,0 +1,506 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/StagePlaceholder.tsx");const _jsxDEV = __vite__cjsImport2_react_jsxDevRuntime["jsxDEV"]; const _Fragment = __vite__cjsImport2_react_jsxDevRuntime["Fragment"];import { Activity, AlertTriangle, BadgeCheck, Layers3 } from "/node_modules/.vite/deps/lucide-react.js?v=d0b641f8";
+import { assetUrl } from "/src/api.ts?t=1788697943585";
+var _jsxFileName = "C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/StagePlaceholder.tsx";
+import __vite__cjsImport2_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=72d546b5";
+const gradeLabels = [
+	"No DR",
+	"Mild",
+	"Moderate",
+	"Severe",
+	"Proliferative DR"
+];
+const lesionLabels = {
+	MA: "Microaneurysms",
+	HE: "Hemorrhages",
+	EX: "Hard exudates",
+	SE: "Soft exudates"
+};
+function ProbabilityBars({ values }) {
+	return /* @__PURE__ */ _jsxDEV("div", {
+		className: "probability-bars",
+		children: Object.entries(values).map(([label, value]) => /* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: label }, void 0, false, {
+			fileName: _jsxFileName,
+			lineNumber: 9,
+			columnNumber: 115
+		}, this), /* @__PURE__ */ _jsxDEV("small", { children: [(value * 100).toFixed(1), "%"] }, void 0, true, {
+			fileName: _jsxFileName,
+			lineNumber: 9,
+			columnNumber: 139
+		}, this)] }, void 0, true, {
+			fileName: _jsxFileName,
+			lineNumber: 9,
+			columnNumber: 109
+		}, this), /* @__PURE__ */ _jsxDEV("div", { children: /* @__PURE__ */ _jsxDEV("i", { style: { width: `${Math.max(value * 100, 1)}%` } }, void 0, false, {
+			fileName: _jsxFileName,
+			lineNumber: 9,
+			columnNumber: 193
+		}, this) }, void 0, false, {
+			fileName: _jsxFileName,
+			lineNumber: 9,
+			columnNumber: 188
+		}, this)] }, label, true, {
+			fileName: _jsxFileName,
+			lineNumber: 9,
+			columnNumber: 92
+		}, this))
+	}, void 0, false, {
+		fileName: _jsxFileName,
+		lineNumber: 9,
+		columnNumber: 10
+	}, this);
+}
+_c = ProbabilityBars;
+export function StagePlaceholder({ stage, result }) {
+	if (stage === "input") return /* @__PURE__ */ _jsxDEV("section", {
+		className: "stage-page",
+		children: [
+			/* @__PURE__ */ _jsxDEV("h1", { children: "Input image" }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 13,
+				columnNumber: 65
+			}, this),
+			/* @__PURE__ */ _jsxDEV("p", { children: "The source image validated and stored for this local analysis session." }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 13,
+				columnNumber: 85
+			}, this),
+			/* @__PURE__ */ _jsxDEV("div", {
+				className: "single-image",
+				children: /* @__PURE__ */ _jsxDEV("img", {
+					src: assetUrl(result.input_image_url),
+					alt: "Uploaded retinal input"
+				}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 13,
+					columnNumber: 192
+				}, this)
+			}, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 13,
+				columnNumber: 162
+			}, this)
+		]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 13,
+		columnNumber: 33
+	}, this);
+	if (stage === "quality") return /* @__PURE__ */ _jsxDEV("section", {
+		className: "stage-page",
+		children: [
+			/* @__PURE__ */ _jsxDEV("h1", { children: "Image quality assessment" }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 14,
+				columnNumber: 67
+			}, this),
+			/* @__PURE__ */ _jsxDEV("p", { children: "EfficientNet-B0 features feed the calibrated three-class IQA head." }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 14,
+				columnNumber: 100
+			}, this),
+			result.quality ? /* @__PURE__ */ _jsxDEV("div", {
+				className: "result-layout",
+				children: [/* @__PURE__ */ _jsxDEV("div", {
+					className: "result-hero",
+					children: [/* @__PURE__ */ _jsxDEV(Activity, {}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 14,
+						columnNumber: 251
+					}, this), /* @__PURE__ */ _jsxDEV("span", { children: [
+						/* @__PURE__ */ _jsxDEV("small", { children: "Predicted quality" }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 14,
+							columnNumber: 269
+						}, this),
+						/* @__PURE__ */ _jsxDEV("strong", { children: result.quality.quality }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 14,
+							columnNumber: 301
+						}, this),
+						/* @__PURE__ */ _jsxDEV("p", { children: [
+							Math.round(result.quality.confidence * 100),
+							"% confidence · ",
+							result.quality.metric
+						] }, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 14,
+							columnNumber: 342
+						}, this)
+					] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 14,
+						columnNumber: 263
+					}, this)]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 14,
+					columnNumber: 222
+				}, this), /* @__PURE__ */ _jsxDEV(ProbabilityBars, { values: result.quality.probabilities }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 14,
+					columnNumber: 445
+				}, this)]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 14,
+				columnNumber: 191
+			}, this) : /* @__PURE__ */ _jsxDEV(Unavailable, {}, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 14,
+				columnNumber: 511
+			}, this)
+		]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 14,
+		columnNumber: 35
+	}, this);
+	if (stage === "grade") {
+		const values = Object.fromEntries((result.grade?.probabilities ?? []).map((value, index) => [`Grade ${index} · ${gradeLabels[index]}`, value]));
+		return /* @__PURE__ */ _jsxDEV("section", {
+			className: "stage-page",
+			children: [
+				/* @__PURE__ */ _jsxDEV("h1", { children: "DR grade classification" }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 17,
+					columnNumber: 44
+				}, this),
+				/* @__PURE__ */ _jsxDEV("p", { children: "ConvNeXt Tiny estimates five DR grade probabilities from the selected retinal image." }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 17,
+					columnNumber: 76
+				}, this),
+				result.grade ? /* @__PURE__ */ _jsxDEV("div", {
+					className: "grade-layout",
+					children: [/* @__PURE__ */ _jsxDEV("div", {
+						className: "result-layout",
+						children: [/* @__PURE__ */ _jsxDEV("div", {
+							className: "result-hero",
+							children: [/* @__PURE__ */ _jsxDEV(BadgeCheck, {}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 17,
+								columnNumber: 273
+							}, this), /* @__PURE__ */ _jsxDEV("span", { children: [
+								/* @__PURE__ */ _jsxDEV("small", { children: "Predicted DR grade" }, void 0, false, {
+									fileName: _jsxFileName,
+									lineNumber: 17,
+									columnNumber: 293
+								}, this),
+								/* @__PURE__ */ _jsxDEV("strong", { children: ["Grade ", result.grade.predicted_grade] }, void 0, true, {
+									fileName: _jsxFileName,
+									lineNumber: 17,
+									columnNumber: 326
+								}, this),
+								/* @__PURE__ */ _jsxDEV("p", { children: [
+									gradeLabels[result.grade.predicted_grade],
+									" · ",
+									Math.round(result.grade.confidence * 100),
+									"% confidence"
+								] }, void 0, true, {
+									fileName: _jsxFileName,
+									lineNumber: 17,
+									columnNumber: 379
+								}, this)
+							] }, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 17,
+								columnNumber: 287
+							}, this)]
+						}, void 0, true, {
+							fileName: _jsxFileName,
+							lineNumber: 17,
+							columnNumber: 244
+						}, this), /* @__PURE__ */ _jsxDEV(ProbabilityBars, { values }, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 17,
+							columnNumber: 500
+						}, this)]
+					}, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 17,
+						columnNumber: 213
+					}, this), /* @__PURE__ */ _jsxDEV("div", {
+						className: "gradcam-card",
+						children: [
+							/* @__PURE__ */ _jsxDEV("h2", { children: "Grad-CAM attention" }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 17,
+								columnNumber: 571
+							}, this),
+							result.grade.gradcam_url ? /* @__PURE__ */ _jsxDEV("img", {
+								src: assetUrl(result.grade.gradcam_url),
+								alt: "Grade model Grad-CAM overlay"
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 17,
+								columnNumber: 626
+							}, this) : /* @__PURE__ */ _jsxDEV(Unavailable, {}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 17,
+								columnNumber: 712
+							}, this),
+							/* @__PURE__ */ _jsxDEV("p", { children: "Attention indicates regions influencing the classifier; it is not a lesion segmentation mask." }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 17,
+								columnNumber: 728
+							}, this)
+						]
+					}, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 17,
+						columnNumber: 541
+					}, this)]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 17,
+					columnNumber: 183
+				}, this) : /* @__PURE__ */ _jsxDEV(Unavailable, {}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 17,
+					columnNumber: 843
+				}, this)
+			]
+		}, void 0, true, {
+			fileName: _jsxFileName,
+			lineNumber: 17,
+			columnNumber: 12
+		}, this);
+	}
+	if (stage === "lesion") return /* @__PURE__ */ _jsxDEV("section", {
+		className: "stage-page",
+		children: [
+			/* @__PURE__ */ _jsxDEV("h1", { children: "Lesion segmentation" }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 19,
+				columnNumber: 66
+			}, this),
+			/* @__PURE__ */ _jsxDEV("p", { children: "MobileNetV3-Large UNet++ predicts independent lesion probability channels." }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 19,
+				columnNumber: 94
+			}, this),
+			result.lesions ? /* @__PURE__ */ _jsxDEV(_Fragment, { children: [/* @__PURE__ */ _jsxDEV("div", {
+				className: "lesion-layout",
+				children: [/* @__PURE__ */ _jsxDEV("div", {
+					className: "single-image",
+					children: /* @__PURE__ */ _jsxDEV("img", {
+						src: assetUrl(result.lesions.overlay_url),
+						alt: "Combined predicted lesion mask overlay"
+					}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 19,
+						columnNumber: 256
+					}, this)
+				}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 19,
+					columnNumber: 226
+				}, this), /* @__PURE__ */ _jsxDEV("div", {
+					className: "lesion-list",
+					children: result.lesions.channel_order.map((name) => {
+						const item = result.lesions.classes[name];
+						return /* @__PURE__ */ _jsxDEV("div", { children: [
+							/* @__PURE__ */ _jsxDEV("span", {
+								className: `lesion-code ${name.toLowerCase()}`,
+								children: name
+							}, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 19,
+								columnNumber: 497
+							}, this),
+							/* @__PURE__ */ _jsxDEV("span", { children: [/* @__PURE__ */ _jsxDEV("strong", { children: lesionLabels[name] }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 19,
+								columnNumber: 570
+							}, this), /* @__PURE__ */ _jsxDEV("small", { children: item.detected ? `${item.num_regions} predicted region${item.num_regions === 1 ? "" : "s"}` : "No retained region" }, void 0, false, {
+								fileName: _jsxFileName,
+								lineNumber: 19,
+								columnNumber: 607
+							}, this)] }, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 19,
+								columnNumber: 564
+							}, this),
+							/* @__PURE__ */ _jsxDEV("b", { children: [item.image_percentage.toFixed(3), "%"] }, void 0, true, {
+								fileName: _jsxFileName,
+								lineNumber: 19,
+								columnNumber: 744
+							}, this)
+						] }, name, true, {
+							fileName: _jsxFileName,
+							lineNumber: 19,
+							columnNumber: 481
+						}, this);
+					})
+				}, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 19,
+					columnNumber: 357
+				}, this)]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 19,
+				columnNumber: 195
+			}, this), /* @__PURE__ */ _jsxDEV("p", {
+				className: "clinical-note",
+				children: [/* @__PURE__ */ _jsxDEV(AlertTriangle, { size: 17 }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 19,
+					columnNumber: 838
+				}, this), result.lesions.localization_note]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 19,
+				columnNumber: 809
+			}, this)] }, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 19,
+				columnNumber: 193
+			}, this) : /* @__PURE__ */ _jsxDEV(Unavailable, {}, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 19,
+				columnNumber: 909
+			}, this)
+		]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 19,
+		columnNumber: 34
+	}, this);
+	return /* @__PURE__ */ _jsxDEV("section", {
+		className: "stage-page",
+		children: [
+			/* @__PURE__ */ _jsxDEV("h1", { children: "Final report" }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 20,
+				columnNumber: 42
+			}, this),
+			/* @__PURE__ */ _jsxDEV("p", { children: "A concise record of the model outputs available from this local analysis." }, void 0, false, {
+				fileName: _jsxFileName,
+				lineNumber: 20,
+				columnNumber: 63
+			}, this),
+			/* @__PURE__ */ _jsxDEV("div", {
+				className: "report-grid",
+				children: [
+					/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("small", { children: "Quality" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 177
+					}, this), /* @__PURE__ */ _jsxDEV("strong", { children: result.quality?.quality ?? "Unavailable" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 199
+					}, this)] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 172
+					}, this),
+					/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("small", { children: "Restoration" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 269
+					}, this), /* @__PURE__ */ _jsxDEV("strong", { children: result.restoration ? "Completed" : "Unavailable" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 295
+					}, this)] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 264
+					}, this),
+					/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("small", { children: "DR grade" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 373
+					}, this), /* @__PURE__ */ _jsxDEV("strong", { children: result.grade ? `Grade ${result.grade.predicted_grade}` : "Unavailable" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 396
+					}, this)] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 368
+					}, this),
+					/* @__PURE__ */ _jsxDEV("div", { children: [/* @__PURE__ */ _jsxDEV("small", { children: "Lesion classes" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 496
+					}, this), /* @__PURE__ */ _jsxDEV("strong", { children: result.lesions ? Object.values(result.lesions.classes).filter((item) => item.detected).length : "Unavailable" }, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 525
+					}, this)] }, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 20,
+						columnNumber: 491
+					}, this)
+				]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 20,
+				columnNumber: 143
+			}, this),
+			/* @__PURE__ */ _jsxDEV("div", {
+				className: "clinical-note",
+				children: [/* @__PURE__ */ _jsxDEV(Layers3, { size: 17 }, void 0, false, {
+					fileName: _jsxFileName,
+					lineNumber: 20,
+					columnNumber: 696
+				}, this), "Research visualization only. Review source imagery and model limitations before interpreting outputs."]
+			}, void 0, true, {
+				fileName: _jsxFileName,
+				lineNumber: 20,
+				columnNumber: 665
+			}, this)
+		]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 20,
+		columnNumber: 10
+	}, this);
+}
+_c2 = StagePlaceholder;
+function Unavailable() {
+	return /* @__PURE__ */ _jsxDEV("div", {
+		className: "unavailable",
+		children: [/* @__PURE__ */ _jsxDEV(AlertTriangle, { size: 20 }, void 0, false, {
+			fileName: _jsxFileName,
+			lineNumber: 23,
+			columnNumber: 62
+		}, this), "This stage did not return a result. Review the warning above for recovery details."]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 23,
+		columnNumber: 33
+	}, this);
+}
+_c3 = Unavailable;
+var _c, _c2, _c3;
+$RefreshReg$(_c, "ProbabilityBars");
+$RefreshReg$(_c2, "StagePlaceholder");
+$RefreshReg$(_c3, "Unavailable");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+import * as __vite_react_currentExports from "/src/components/StagePlaceholder.tsx?t=1788697943585";
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+
+  const currentExports = __vite_react_currentExports;
+  queueMicrotask(() => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/StagePlaceholder.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/StagePlaceholder.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) { return RefreshRuntime.register(type, "C:/Users/ADMIN/Videos/Diabetic-Retinopathy-/frontend/src/components/StagePlaceholder.tsx" + ' ' + id); }
+function $RefreshSig$() { return RefreshRuntime.createSignatureFunctionForTransform(); }
+
+//# sourceMappingURL=data:application/json;base64,eyJtYXBwaW5ncyI6IkFBQUEsU0FBUyxVQUFVLGVBQWUsWUFBWSxlQUFlO0FBQzdELFNBQVMsZ0JBQWdCOzs7QUFHekIsTUFBTSxjQUFjO0NBQUM7Q0FBUztDQUFRO0NBQVk7Q0FBVTtBQUFrQjtBQUM5RSxNQUFNLGVBQXVDO0NBQUUsSUFBSTtDQUFrQixJQUFJO0NBQWUsSUFBSTtDQUFpQixJQUFJO0FBQWdCO0FBRWpJLFNBQVMsZ0JBQWdCLEVBQUUsVUFBOEM7Q0FDdkUsT0FBTyx3QkFBQyxPQUFEO0VBQUssV0FBVTtZQUFvQixPQUFPLFFBQVEsTUFBTSxDQUFDLENBQUMsS0FBSyxDQUFDLE9BQU8sV0FBVyx3QkFBQyxPQUFELGFBQWlCLHdCQUFDLFFBQUQsYUFBTSx3QkFBQyxVQUFELFlBQVMsTUFBYzs7OztZQUFDLHdCQUFDLFNBQUQsY0FBUyxRQUFRLElBQUcsQ0FBRSxRQUFRLENBQUMsR0FBRSxHQUFROzs7O1VBQU87Ozs7WUFBQyx3QkFBQyxPQUFELFlBQUssd0JBQUMsS0FBRCxFQUFHLE9BQU8sRUFBRSxPQUFPLEdBQUcsS0FBSyxJQUFJLFFBQVEsS0FBSyxDQUFDLEVBQUUsR0FBRyxFQUFJOzs7O1dBQU07Ozs7VUFBTSxLQUE3Sjs7OztTQUE2SixDQUFDO0NBQU87Ozs7O0FBQzFROztBQUVBLE9BQU8sU0FBUyxpQkFBaUIsRUFBRSxPQUFPLFVBQXFEO0NBQzdGLElBQUksVUFBVSxTQUFTLE9BQU8sd0JBQUMsV0FBRDtFQUFTLFdBQVU7WUFBbkI7R0FBZ0Msd0JBQUMsTUFBRCxZQUFJLGNBQWU7Ozs7O0dBQUMsd0JBQUMsS0FBRCxZQUFHLHlFQUF5RTs7Ozs7R0FBQyx3QkFBQyxPQUFEO0lBQUssV0FBVTtjQUFlLHdCQUFDLE9BQUQ7S0FBSyxLQUFLLFNBQVMsT0FBTyxlQUFlO0tBQUcsS0FBSTtJQUEwQjs7Ozs7R0FBTTs7Ozs7RUFBVTs7Ozs7O0NBQ3ZSLElBQUksVUFBVSxXQUFXLE9BQU8sd0JBQUMsV0FBRDtFQUFTLFdBQVU7WUFBbkI7R0FBZ0Msd0JBQUMsTUFBRCxZQUFJLDJCQUE0Qjs7Ozs7R0FBQyx3QkFBQyxLQUFELFlBQUcscUVBQXFFOzs7OztHQUFFLE9BQU8sVUFBVSx3QkFBQyxPQUFEO0lBQUssV0FBVTtjQUFmLENBQStCLHdCQUFDLE9BQUQ7S0FBSyxXQUFVO2VBQWYsQ0FBNkIsd0JBQUMsVUFBRCxDQUFXOzs7O2VBQUMsd0JBQUMsUUFBRDtNQUFNLHdCQUFDLFNBQUQsWUFBTyxvQkFBd0I7Ozs7O01BQUMsd0JBQUMsVUFBRCxZQUFTLE9BQU8sUUFBUSxRQUFnQjs7Ozs7TUFBQyx3QkFBQyxLQUFEO09BQUksS0FBSyxNQUFNLE9BQU8sUUFBUSxhQUFhLEdBQUc7T0FBRTtPQUFnQixPQUFPLFFBQVE7TUFBVTs7Ozs7S0FBTzs7OzthQUFNOzs7OztjQUFDLHdCQUFDLGlCQUFELEVBQWlCLFFBQVEsT0FBTyxRQUFRLGNBQWdCOzs7O1lBQU07Ozs7O2NBQUksd0JBQUMsYUFBRCxDQUFjOzs7OztFQUFXOzs7Ozs7Q0FDcmhCLElBQUksVUFBVSxTQUFTO0VBQ3JCLE1BQU0sU0FBUyxPQUFPLGFBQWEsT0FBTyxPQUFPLGlCQUFpQixDQUFDLEVBQUMsQ0FBRSxLQUFLLE9BQU8sVUFBVSxDQUFDLFNBQVMsTUFBTSxLQUFLLFlBQVksVUFBVSxLQUFLLENBQUMsQ0FBQztFQUM5SSxPQUFPLHdCQUFDLFdBQUQ7R0FBUyxXQUFVO2FBQW5CO0lBQWdDLHdCQUFDLE1BQUQsWUFBSSwwQkFBMkI7Ozs7O0lBQUMsd0JBQUMsS0FBRCxZQUFHLHVGQUF1Rjs7Ozs7SUFBRSxPQUFPLFFBQVEsd0JBQUMsT0FBRDtLQUFLLFdBQVU7ZUFBZixDQUE4Qix3QkFBQyxPQUFEO01BQUssV0FBVTtnQkFBZixDQUErQix3QkFBQyxPQUFEO09BQUssV0FBVTtpQkFBZixDQUE2Qix3QkFBQyxZQUFELENBQWE7Ozs7aUJBQUMsd0JBQUMsUUFBRDtRQUFNLHdCQUFDLFNBQUQsWUFBTyxxQkFBeUI7Ozs7O1FBQUMsd0JBQUMsVUFBRCxhQUFRLFVBQU8sT0FBTyxNQUFNLGVBQXdCOzs7OztRQUFDLHdCQUFDLEtBQUQ7U0FBSSxZQUFZLE9BQU8sTUFBTTtTQUFpQjtTQUFJLEtBQUssTUFBTSxPQUFPLE1BQU0sYUFBYSxHQUFHO1NBQUU7UUFBZTs7Ozs7T0FBTzs7OztlQUFNOzs7OztnQkFBQyx3QkFBQyxpQkFBRCxFQUF5QixPQUFTOzs7O2NBQU07Ozs7O2VBQUMsd0JBQUMsT0FBRDtNQUFLLFdBQVU7Z0JBQWY7T0FBOEIsd0JBQUMsTUFBRCxZQUFJLHFCQUFzQjs7Ozs7T0FBRSxPQUFPLE1BQU0sY0FBYyx3QkFBQyxPQUFEO1FBQUssS0FBSyxTQUFTLE9BQU8sTUFBTSxXQUFXO1FBQUcsS0FBSTtPQUFnQzs7OztrQkFBSSx3QkFBQyxhQUFELENBQWM7Ozs7O09BQUUsd0JBQUMsS0FBRCxZQUFHLGdHQUFnRzs7Ozs7TUFBTTs7Ozs7YUFBTTs7Ozs7ZUFBSSx3QkFBQyxhQUFELENBQWM7Ozs7O0dBQVc7Ozs7OztDQUNqMkI7Q0FDQSxJQUFJLFVBQVUsVUFBVSxPQUFPLHdCQUFDLFdBQUQ7RUFBUyxXQUFVO1lBQW5CO0dBQWdDLHdCQUFDLE1BQUQsWUFBSSxzQkFBdUI7Ozs7O0dBQUMsd0JBQUMsS0FBRCxZQUFHLDZFQUE2RTs7Ozs7R0FBRSxPQUFPLFVBQVUsZ0RBQUUsd0JBQUMsT0FBRDtJQUFLLFdBQVU7Y0FBZixDQUErQix3QkFBQyxPQUFEO0tBQUssV0FBVTtlQUFlLHdCQUFDLE9BQUQ7TUFBSyxLQUFLLFNBQVMsT0FBTyxRQUFRLFdBQVc7TUFBRyxLQUFJO0tBQTBDOzs7OztJQUFNOzs7O2NBQUMsd0JBQUMsT0FBRDtLQUFLLFdBQVU7ZUFBZSxPQUFPLFFBQVEsY0FBYyxLQUFLLFNBQVM7TUFBRSxNQUFNLE9BQUssT0FBTyxRQUFTLFFBQVE7TUFBTyxPQUFPLHdCQUFDLE9BQUQ7T0FBZ0Isd0JBQUMsUUFBRDtRQUFNLFdBQVcsZUFBZSxLQUFLLFlBQVk7a0JBQU07T0FBVzs7Ozs7T0FBQyx3QkFBQyxRQUFELGFBQU0sd0JBQUMsVUFBRCxZQUFTLGFBQWEsTUFBYzs7OztpQkFBQyx3QkFBQyxTQUFELFlBQVEsS0FBSyxXQUFXLEdBQUcsS0FBSyxZQUFZLG1CQUFtQixLQUFLLGdCQUFnQixJQUFJLEtBQUssUUFBUSxxQkFBNEI7Ozs7ZUFBTzs7Ozs7T0FBQyx3QkFBQyxLQUFELGFBQUksS0FBSyxpQkFBaUIsUUFBUSxDQUFDLEdBQUUsR0FBSTs7Ozs7TUFBTSxLQUE1Uzs7OzthQUE0UztLQUFHLENBQUM7SUFBTzs7OztZQUFNOzs7OzthQUFDLHdCQUFDLEtBQUQ7SUFBRyxXQUFVO2NBQWIsQ0FBNkIsd0JBQUMsZUFBRCxFQUFlLE1BQU0sR0FBSzs7OztjQUFFLE9BQU8sUUFBUSxpQkFBcUI7Ozs7O1dBQUc7Ozs7Y0FBSSx3QkFBQyxhQUFELENBQWM7Ozs7O0VBQVc7Ozs7OztDQUNuNkIsT0FBTyx3QkFBQyxXQUFEO0VBQVMsV0FBVTtZQUFuQjtHQUFnQyx3QkFBQyxNQUFELFlBQUksZUFBZ0I7Ozs7O0dBQUMsd0JBQUMsS0FBRCxZQUFHLDRFQUE0RTs7Ozs7R0FBQyx3QkFBQyxPQUFEO0lBQUssV0FBVTtjQUFmO0tBQTZCLHdCQUFDLE9BQUQsYUFBSyx3QkFBQyxTQUFELFlBQU8sVUFBYzs7OztlQUFDLHdCQUFDLFVBQUQsWUFBUyxPQUFPLFNBQVMsV0FBVyxjQUFzQjs7OzthQUFNOzs7OztLQUFDLHdCQUFDLE9BQUQsYUFBSyx3QkFBQyxTQUFELFlBQU8sY0FBa0I7Ozs7ZUFBQyx3QkFBQyxVQUFELFlBQVMsT0FBTyxjQUFjLGNBQWMsY0FBc0I7Ozs7YUFBTTs7Ozs7S0FBQyx3QkFBQyxPQUFELGFBQUssd0JBQUMsU0FBRCxZQUFPLFdBQWU7Ozs7ZUFBQyx3QkFBQyxVQUFELFlBQVMsT0FBTyxRQUFRLFNBQVMsT0FBTyxNQUFNLG9CQUFvQixjQUFzQjs7OzthQUFNOzs7OztLQUFDLHdCQUFDLE9BQUQsYUFBSyx3QkFBQyxTQUFELFlBQU8saUJBQXFCOzs7O2VBQUMsd0JBQUMsVUFBRCxZQUFTLE9BQU8sVUFBVSxPQUFPLE9BQU8sT0FBTyxRQUFRLE9BQU8sQ0FBQyxDQUFDLFFBQVEsU0FBUyxLQUFLLFFBQVEsQ0FBQyxDQUFDLFNBQVMsY0FBc0I7Ozs7YUFBTTs7Ozs7SUFBTTs7Ozs7O0dBQUMsd0JBQUMsT0FBRDtJQUFLLFdBQVU7Y0FBZixDQUErQix3QkFBQyxTQUFELEVBQVMsTUFBTSxHQUFLOzs7O2NBQUMsdUdBQTBHOzs7Ozs7RUFBVTs7Ozs7O0FBQ2gwQjs7QUFFQSxTQUFTLGNBQWM7Q0FBRSxPQUFPLHdCQUFDLE9BQUQ7RUFBSyxXQUFVO1lBQWYsQ0FBNkIsd0JBQUMsZUFBRCxFQUFlLE1BQU0sR0FBSzs7OztZQUFDLG9GQUF1Rjs7Ozs7O0FBQUciLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiU3RhZ2VQbGFjZWhvbGRlci50c3giXSwidmVyc2lvbiI6Mywic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgQWN0aXZpdHksIEFsZXJ0VHJpYW5nbGUsIEJhZGdlQ2hlY2ssIExheWVyczMgfSBmcm9tIFwibHVjaWRlLXJlYWN0XCI7XG5pbXBvcnQgeyBhc3NldFVybCB9IGZyb20gXCIuLi9hcGlcIjtcbmltcG9ydCB0eXBlIHsgQW5hbHlzaXNSZXN1bHQgfSBmcm9tIFwiLi4vdHlwZXNcIjtcblxuY29uc3QgZ3JhZGVMYWJlbHMgPSBbXCJObyBEUlwiLCBcIk1pbGRcIiwgXCJNb2RlcmF0ZVwiLCBcIlNldmVyZVwiLCBcIlByb2xpZmVyYXRpdmUgRFJcIl07XG5jb25zdCBsZXNpb25MYWJlbHM6IFJlY29yZDxzdHJpbmcsIHN0cmluZz4gPSB7IE1BOiBcIk1pY3JvYW5ldXJ5c21zXCIsIEhFOiBcIkhlbW9ycmhhZ2VzXCIsIEVYOiBcIkhhcmQgZXh1ZGF0ZXNcIiwgU0U6IFwiU29mdCBleHVkYXRlc1wiIH07XG5cbmZ1bmN0aW9uIFByb2JhYmlsaXR5QmFycyh7IHZhbHVlcyB9OiB7IHZhbHVlczogUmVjb3JkPHN0cmluZywgbnVtYmVyPiB9KSB7XG4gIHJldHVybiA8ZGl2IGNsYXNzTmFtZT1cInByb2JhYmlsaXR5LWJhcnNcIj57T2JqZWN0LmVudHJpZXModmFsdWVzKS5tYXAoKFtsYWJlbCwgdmFsdWVdKSA9PiA8ZGl2IGtleT17bGFiZWx9PjxzcGFuPjxzdHJvbmc+e2xhYmVsfTwvc3Ryb25nPjxzbWFsbD57KHZhbHVlICogMTAwKS50b0ZpeGVkKDEpfSU8L3NtYWxsPjwvc3Bhbj48ZGl2PjxpIHN0eWxlPXt7IHdpZHRoOiBgJHtNYXRoLm1heCh2YWx1ZSAqIDEwMCwgMSl9JWAgfX0gLz48L2Rpdj48L2Rpdj4pfTwvZGl2Pjtcbn1cblxuZXhwb3J0IGZ1bmN0aW9uIFN0YWdlUGxhY2Vob2xkZXIoeyBzdGFnZSwgcmVzdWx0IH06IHsgc3RhZ2U6IHN0cmluZzsgcmVzdWx0OiBBbmFseXNpc1Jlc3VsdCB9KSB7XG4gIGlmIChzdGFnZSA9PT0gXCJpbnB1dFwiKSByZXR1cm4gPHNlY3Rpb24gY2xhc3NOYW1lPVwic3RhZ2UtcGFnZVwiPjxoMT5JbnB1dCBpbWFnZTwvaDE+PHA+VGhlIHNvdXJjZSBpbWFnZSB2YWxpZGF0ZWQgYW5kIHN0b3JlZCBmb3IgdGhpcyBsb2NhbCBhbmFseXNpcyBzZXNzaW9uLjwvcD48ZGl2IGNsYXNzTmFtZT1cInNpbmdsZS1pbWFnZVwiPjxpbWcgc3JjPXthc3NldFVybChyZXN1bHQuaW5wdXRfaW1hZ2VfdXJsKX0gYWx0PVwiVXBsb2FkZWQgcmV0aW5hbCBpbnB1dFwiIC8+PC9kaXY+PC9zZWN0aW9uPjtcbiAgaWYgKHN0YWdlID09PSBcInF1YWxpdHlcIikgcmV0dXJuIDxzZWN0aW9uIGNsYXNzTmFtZT1cInN0YWdlLXBhZ2VcIj48aDE+SW1hZ2UgcXVhbGl0eSBhc3Nlc3NtZW50PC9oMT48cD5FZmZpY2llbnROZXQtQjAgZmVhdHVyZXMgZmVlZCB0aGUgY2FsaWJyYXRlZCB0aHJlZS1jbGFzcyBJUUEgaGVhZC48L3A+e3Jlc3VsdC5xdWFsaXR5ID8gPGRpdiBjbGFzc05hbWU9XCJyZXN1bHQtbGF5b3V0XCI+PGRpdiBjbGFzc05hbWU9XCJyZXN1bHQtaGVyb1wiPjxBY3Rpdml0eSAvPjxzcGFuPjxzbWFsbD5QcmVkaWN0ZWQgcXVhbGl0eTwvc21hbGw+PHN0cm9uZz57cmVzdWx0LnF1YWxpdHkucXVhbGl0eX08L3N0cm9uZz48cD57TWF0aC5yb3VuZChyZXN1bHQucXVhbGl0eS5jb25maWRlbmNlICogMTAwKX0lIGNvbmZpZGVuY2Ugwrcge3Jlc3VsdC5xdWFsaXR5Lm1ldHJpY308L3A+PC9zcGFuPjwvZGl2PjxQcm9iYWJpbGl0eUJhcnMgdmFsdWVzPXtyZXN1bHQucXVhbGl0eS5wcm9iYWJpbGl0aWVzfSAvPjwvZGl2PiA6IDxVbmF2YWlsYWJsZSAvPn08L3NlY3Rpb24+O1xuICBpZiAoc3RhZ2UgPT09IFwiZ3JhZGVcIikge1xuICAgIGNvbnN0IHZhbHVlcyA9IE9iamVjdC5mcm9tRW50cmllcygocmVzdWx0LmdyYWRlPy5wcm9iYWJpbGl0aWVzID8/IFtdKS5tYXAoKHZhbHVlLCBpbmRleCkgPT4gW2BHcmFkZSAke2luZGV4fSDCtyAke2dyYWRlTGFiZWxzW2luZGV4XX1gLCB2YWx1ZV0pKTtcbiAgICByZXR1cm4gPHNlY3Rpb24gY2xhc3NOYW1lPVwic3RhZ2UtcGFnZVwiPjxoMT5EUiBncmFkZSBjbGFzc2lmaWNhdGlvbjwvaDE+PHA+Q29udk5lWHQgVGlueSBlc3RpbWF0ZXMgZml2ZSBEUiBncmFkZSBwcm9iYWJpbGl0aWVzIGZyb20gdGhlIHNlbGVjdGVkIHJldGluYWwgaW1hZ2UuPC9wPntyZXN1bHQuZ3JhZGUgPyA8ZGl2IGNsYXNzTmFtZT1cImdyYWRlLWxheW91dFwiPjxkaXYgY2xhc3NOYW1lPVwicmVzdWx0LWxheW91dFwiPjxkaXYgY2xhc3NOYW1lPVwicmVzdWx0LWhlcm9cIj48QmFkZ2VDaGVjayAvPjxzcGFuPjxzbWFsbD5QcmVkaWN0ZWQgRFIgZ3JhZGU8L3NtYWxsPjxzdHJvbmc+R3JhZGUge3Jlc3VsdC5ncmFkZS5wcmVkaWN0ZWRfZ3JhZGV9PC9zdHJvbmc+PHA+e2dyYWRlTGFiZWxzW3Jlc3VsdC5ncmFkZS5wcmVkaWN0ZWRfZ3JhZGVdfSDCtyB7TWF0aC5yb3VuZChyZXN1bHQuZ3JhZGUuY29uZmlkZW5jZSAqIDEwMCl9JSBjb25maWRlbmNlPC9wPjwvc3Bhbj48L2Rpdj48UHJvYmFiaWxpdHlCYXJzIHZhbHVlcz17dmFsdWVzfSAvPjwvZGl2PjxkaXYgY2xhc3NOYW1lPVwiZ3JhZGNhbS1jYXJkXCI+PGgyPkdyYWQtQ0FNIGF0dGVudGlvbjwvaDI+e3Jlc3VsdC5ncmFkZS5ncmFkY2FtX3VybCA/IDxpbWcgc3JjPXthc3NldFVybChyZXN1bHQuZ3JhZGUuZ3JhZGNhbV91cmwpfSBhbHQ9XCJHcmFkZSBtb2RlbCBHcmFkLUNBTSBvdmVybGF5XCIgLz4gOiA8VW5hdmFpbGFibGUgLz59PHA+QXR0ZW50aW9uIGluZGljYXRlcyByZWdpb25zIGluZmx1ZW5jaW5nIHRoZSBjbGFzc2lmaWVyOyBpdCBpcyBub3QgYSBsZXNpb24gc2VnbWVudGF0aW9uIG1hc2suPC9wPjwvZGl2PjwvZGl2PiA6IDxVbmF2YWlsYWJsZSAvPn08L3NlY3Rpb24+O1xuICB9XG4gIGlmIChzdGFnZSA9PT0gXCJsZXNpb25cIikgcmV0dXJuIDxzZWN0aW9uIGNsYXNzTmFtZT1cInN0YWdlLXBhZ2VcIj48aDE+TGVzaW9uIHNlZ21lbnRhdGlvbjwvaDE+PHA+TW9iaWxlTmV0VjMtTGFyZ2UgVU5ldCsrIHByZWRpY3RzIGluZGVwZW5kZW50IGxlc2lvbiBwcm9iYWJpbGl0eSBjaGFubmVscy48L3A+e3Jlc3VsdC5sZXNpb25zID8gPD48ZGl2IGNsYXNzTmFtZT1cImxlc2lvbi1sYXlvdXRcIj48ZGl2IGNsYXNzTmFtZT1cInNpbmdsZS1pbWFnZVwiPjxpbWcgc3JjPXthc3NldFVybChyZXN1bHQubGVzaW9ucy5vdmVybGF5X3VybCl9IGFsdD1cIkNvbWJpbmVkIHByZWRpY3RlZCBsZXNpb24gbWFzayBvdmVybGF5XCIgLz48L2Rpdj48ZGl2IGNsYXNzTmFtZT1cImxlc2lvbi1saXN0XCI+e3Jlc3VsdC5sZXNpb25zLmNoYW5uZWxfb3JkZXIubWFwKChuYW1lKSA9PiB7IGNvbnN0IGl0ZW09cmVzdWx0Lmxlc2lvbnMhLmNsYXNzZXNbbmFtZV07IHJldHVybiA8ZGl2IGtleT17bmFtZX0+PHNwYW4gY2xhc3NOYW1lPXtgbGVzaW9uLWNvZGUgJHtuYW1lLnRvTG93ZXJDYXNlKCl9YH0+e25hbWV9PC9zcGFuPjxzcGFuPjxzdHJvbmc+e2xlc2lvbkxhYmVsc1tuYW1lXX08L3N0cm9uZz48c21hbGw+e2l0ZW0uZGV0ZWN0ZWQgPyBgJHtpdGVtLm51bV9yZWdpb25zfSBwcmVkaWN0ZWQgcmVnaW9uJHtpdGVtLm51bV9yZWdpb25zID09PSAxID8gXCJcIiA6IFwic1wifWAgOiBcIk5vIHJldGFpbmVkIHJlZ2lvblwifTwvc21hbGw+PC9zcGFuPjxiPntpdGVtLmltYWdlX3BlcmNlbnRhZ2UudG9GaXhlZCgzKX0lPC9iPjwvZGl2PjsgfSl9PC9kaXY+PC9kaXY+PHAgY2xhc3NOYW1lPVwiY2xpbmljYWwtbm90ZVwiPjxBbGVydFRyaWFuZ2xlIHNpemU9ezE3fSAvPntyZXN1bHQubGVzaW9ucy5sb2NhbGl6YXRpb25fbm90ZX08L3A+PC8+IDogPFVuYXZhaWxhYmxlIC8+fTwvc2VjdGlvbj47XG4gIHJldHVybiA8c2VjdGlvbiBjbGFzc05hbWU9XCJzdGFnZS1wYWdlXCI+PGgxPkZpbmFsIHJlcG9ydDwvaDE+PHA+QSBjb25jaXNlIHJlY29yZCBvZiB0aGUgbW9kZWwgb3V0cHV0cyBhdmFpbGFibGUgZnJvbSB0aGlzIGxvY2FsIGFuYWx5c2lzLjwvcD48ZGl2IGNsYXNzTmFtZT1cInJlcG9ydC1ncmlkXCI+PGRpdj48c21hbGw+UXVhbGl0eTwvc21hbGw+PHN0cm9uZz57cmVzdWx0LnF1YWxpdHk/LnF1YWxpdHkgPz8gXCJVbmF2YWlsYWJsZVwifTwvc3Ryb25nPjwvZGl2PjxkaXY+PHNtYWxsPlJlc3RvcmF0aW9uPC9zbWFsbD48c3Ryb25nPntyZXN1bHQucmVzdG9yYXRpb24gPyBcIkNvbXBsZXRlZFwiIDogXCJVbmF2YWlsYWJsZVwifTwvc3Ryb25nPjwvZGl2PjxkaXY+PHNtYWxsPkRSIGdyYWRlPC9zbWFsbD48c3Ryb25nPntyZXN1bHQuZ3JhZGUgPyBgR3JhZGUgJHtyZXN1bHQuZ3JhZGUucHJlZGljdGVkX2dyYWRlfWAgOiBcIlVuYXZhaWxhYmxlXCJ9PC9zdHJvbmc+PC9kaXY+PGRpdj48c21hbGw+TGVzaW9uIGNsYXNzZXM8L3NtYWxsPjxzdHJvbmc+e3Jlc3VsdC5sZXNpb25zID8gT2JqZWN0LnZhbHVlcyhyZXN1bHQubGVzaW9ucy5jbGFzc2VzKS5maWx0ZXIoKGl0ZW0pID0+IGl0ZW0uZGV0ZWN0ZWQpLmxlbmd0aCA6IFwiVW5hdmFpbGFibGVcIn08L3N0cm9uZz48L2Rpdj48L2Rpdj48ZGl2IGNsYXNzTmFtZT1cImNsaW5pY2FsLW5vdGVcIj48TGF5ZXJzMyBzaXplPXsxN30gLz5SZXNlYXJjaCB2aXN1YWxpemF0aW9uIG9ubHkuIFJldmlldyBzb3VyY2UgaW1hZ2VyeSBhbmQgbW9kZWwgbGltaXRhdGlvbnMgYmVmb3JlIGludGVycHJldGluZyBvdXRwdXRzLjwvZGl2Pjwvc2VjdGlvbj47XG59XG5cbmZ1bmN0aW9uIFVuYXZhaWxhYmxlKCkgeyByZXR1cm4gPGRpdiBjbGFzc05hbWU9XCJ1bmF2YWlsYWJsZVwiPjxBbGVydFRyaWFuZ2xlIHNpemU9ezIwfSAvPlRoaXMgc3RhZ2UgZGlkIG5vdCByZXR1cm4gYSByZXN1bHQuIFJldmlldyB0aGUgd2FybmluZyBhYm92ZSBmb3IgcmVjb3ZlcnkgZGV0YWlscy48L2Rpdj47IH1cbiJdfQ==

@@ -1,0 +1,6 @@
+C:\Users\ADMIN\Videos\Diabetic-Retinopathy-\README.md
+C:\Users\ADMIN\Videos\Diabetic-Retinopathy-\models\iqa\README.md
+C:\Users\ADMIN\Videos\Diabetic-Retinopathy-\models\lesion\README.md
+C:\Users\ADMIN\Videos\Diabetic-Retinopathy-\models\restoration\README.md
+C:\Users\ADMIN\Videos\Diabetic-Retinopathy-\requirements.txt
+C:\Users\ADMIN\Videos\Diabetic-Retinopathy-\WhatsApp Image 2026-09-05 at 19.35.33.jpeg

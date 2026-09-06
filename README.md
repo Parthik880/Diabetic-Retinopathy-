@@ -220,3 +220,130 @@ python inference/restoration_inference.py --image fundus.jpg
 python inference/lesion_inference.py --image fundus.jpg
 python inference/grade_inference.py --image fundus.jpg
 ```
+
+## RetinaGram AI Model Visualizer (localhost)
+
+The visualizer is a separate React/FastAPI application. It does not modify or
+replace an existing desktop executable. It calls the reusable model loaders and
+prediction functions documented above and keeps uploaded/generated files under
+`inference/outputs/visualizer/`.
+
+### 1. Setup
+
+Run these commands from the repository root:
+
+```powershell
+python -m pip install -r backend/requirements.txt
+cd frontend
+npm install
+cd ..
+```
+
+Python 3.10–3.12 is recommended. The frontend uses a locally bundled Manrope
+font package and does not depend on a hosted font at runtime.
+
+### 2. Start the backend
+
+From the repository root:
+
+```powershell
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+The API and interactive OpenAPI documentation are available at:
+
+- `http://127.0.0.1:8000`
+- `http://127.0.0.1:8000/docs`
+
+Implemented endpoints:
+
+- `POST /api/analyze` — validates one upload and runs the real local pipeline.
+- `GET /api/analysis/{session_id}` — reloads an existing local analysis, which
+  also makes refreshable `?session=...` visualizer URLs possible.
+- `GET /api/stages` — returns the ordered visualizer stage definitions.
+- `GET /api/models` — reports model architecture, resolved checkpoint path, and
+  whether each checkpoint exists.
+- `GET /api/explorer/{model_id}` — returns the architecture tree, dynamically
+  calculated parameter count, and meaningful block list for a loaded model.
+- `GET /api/explorer/{model_id}/blocks/{block_id}?session_id=...` — runs one
+  short-lived hook and returns rendered feature/activation image URLs plus the
+  exact captured tensor shape. Raw tensors are never serialized to the browser.
+- `GET /api/explorer/grade/gradcam/{target_class}?session_id=...` — recomputes
+  class-conditioned ConvNeXt Grad-CAM for grades 0–4.
+- `GET /api/nafnet/features/{stage}?session_id=...` — legacy session endpoint for
+  analyses created by the earlier five-stage feature-map implementation.
+
+### 3. Start the frontend
+
+In a second terminal:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. Vite proxies `/api` and `/media` to the backend.
+Set `VITE_API_URL` only when running the two processes on different origins.
+The current visualizer is designed and validated for desktop/PC use; mobile is
+not an acceptance target for this version.
+
+### 4. Model and checkpoint detection
+
+The application uses the existing repository defaults:
+
+| Stage | Architecture | Default checkpoint |
+| --- | --- | --- |
+| Quality | EfficientNet-B0 + calibrated MLP | `model/checkpoints/final_efficientnet_iqa.pth` |
+| Restoration | NAFNet width-32 | `checkpoint/restoration/NAFNet-SIDD-width32.pth` |
+| Grade | ConvNeXt Tiny, 5 classes | `checkpoint/grade/convnext_tiny.pth` |
+| Lesions | MobileNetV3-Large UNet++, 4 channels | `model/checkpoints/epoch_018_best_dice.pth` |
+
+Grade and restoration also honor `DR_CHECKPOINT_DIR` through
+`models/checkpoints.py`. Models load lazily on the first analysis so the API can
+start and report missing checkpoints without crashing at import time. A failed
+optional stage returns an explicit stage error and the rest of the pipeline uses
+the last valid image where possible.
+
+### 5. GPU and CPU behavior
+
+`backend/app/model_registry.py` selects CUDA only when
+`torch.cuda.is_available()` is true; otherwise all stages use CPU. Checkpoints
+are mapped safely and existing loaders place models in evaluation mode. Inference
+uses `torch.inference_mode()` except existing Grad-CAM paths, which enable only
+the gradients needed for attribution. The UI warns that CPU analysis can take
+several minutes for larger images. Uploads are capped at 20 MB and 2048 pixels on
+the longest edge to keep local inference bounded.
+
+### 6. Layer explorer and hook lifecycle
+
+The reusable `HookManager` in `backend/app/services/hook_manager.py` registers
+only the selected block, detaches the captured tensor, moves it to CPU, and
+removes every hook at the end of the request. Initial analysis no longer renders
+feature maps eagerly. `backend/app/services/model_explorer.py` derives the
+available blocks from the real model modules and reruns one bounded inference
+only when a card is expanded. Renders are cached under the current session.
+
+Default block units are EfficientNet MBConv blocks, every NAFBlock plus real
+down/up modules, every ConvNeXt block and downsampler, MobileNetV3 inverted
+residual blocks, actual encoder projections, UNet++ nested decoder nodes, and
+the real output heads. Advanced mode exposes child operations that genuinely
+exist inside those repository modules.
+
+The grayscale feature image is the strongest representative channel by mean
+absolute response. The distinct heatmap is channel mean absolute activation
+energy. Both use safe percentile normalization for display, and neither is
+called Grad-CAM. NAFNet visualization reruns on a documented preview capped at
+384 pixels on its longest edge; prediction still uses the full validated image.
+
+Existing grade Grad-CAM remains in `models/grade/gradcam.py` and is exposed with
+a real target-class selector. Lesion output uses the model's actual thresholded
+masks, probability maps, and combined overlay. Feature maps, activation energy,
+Grad-CAM, and segmentation masks are labeled as separate evidence types.
+
+### Verification
+
+```powershell
+python -m pytest backend/tests -q
+cd frontend
+npm run build
+```
