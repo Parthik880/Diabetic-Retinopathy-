@@ -1,12 +1,11 @@
 """Trained image-quality classification head."""
 
-from pathlib import Path
 from torch import nn
 
-DEFAULT_CHECKPOINT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "model" / "checkpoints" / "final_efficientnet_iqa.pth"
-)
+from models.checkpoints import IQA_CHECKPOINT
+
+
+DEFAULT_CHECKPOINT_PATH = IQA_CHECKPOINT
 IQA_CLASS_NAMES = ["Good", "Usable", "Reject"]
 MODEL_LABEL = "EfficientNet-B0 + MLP"
 METRIC_ID = "efficientnet_b0_iqa"

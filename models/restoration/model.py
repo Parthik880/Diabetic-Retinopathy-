@@ -7,14 +7,12 @@ from pathlib import Path
 
 import torch
 
-from models.checkpoints import checkpoint_path
+from models.checkpoints import NAFNET_CHECKPOINT
 
 from .nafnet import NAFNet
 
 
-DEFAULT_CHECKPOINT_PATH = checkpoint_path(
-    "restoration", "NAFNet-SIDD-width32.pth"
-)
+DEFAULT_CHECKPOINT_PATH = NAFNET_CHECKPOINT
 NAFNET_CONFIG = {
     "img_channel": 3,
     "width": 32,

@@ -146,5 +146,6 @@ this audit's scope.
 
 Large images, TIFF annotations, and dataset CSVs remain external to Git.
 The unchanged selected checkpoint is now committed at
-model/checkpoints/epoch_018_best_dice.pth; --checkpoint still accepts an
+models/checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth;
+--checkpoint still accepts an
 explicit alternative path.
