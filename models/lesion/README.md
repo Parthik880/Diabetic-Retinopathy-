@@ -145,7 +145,7 @@ audit and return a nonzero exit code. Files absent from the CSV are outside
 this audit's scope.
 
 Large images, TIFF annotations, and dataset CSVs remain external to Git.
-The unchanged selected checkpoint is now committed at
-models/checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth;
---checkpoint still accepts an
+The unchanged selected checkpoint is stored locally at
+checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth;
+it is not committed to Git. --checkpoint still accepts an
 explicit alternative path.

@@ -3,22 +3,35 @@ venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
 .ruff_cache/
 .cache/
-/checkpoint/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*.log
 /checkpoint_bundle.zip
 
 # Runtime outputs are generated per image and are not persistent results.
-inference/outputs/**
-!inference/outputs/**/
-!inference/outputs/**/.gitkeep
+inference/outputs/
 
 # Datasets stay external to this inference repository.
 data/
 datasets/
 models/lesion/idrid+ddr_lesion.csv
 
-# Trained checkpoints are versioned only in the shared LFS-managed directory.
+# Model checkpoints — local only
+checkpoints/
+
+# ML weight/checkpoint files
 *.pth
-!models/checkpoints/
-!models/checkpoints/*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx

@@ -17,18 +17,18 @@ input: RGB float tensor in [0, 1], without ImageNet normalization
 output: same spatial resolution as the input
 ```
 
-The current default checkpoint is provided by the centralized offline bundle:
+The current default checkpoint is loaded from the local repository-root directory:
 
 ```text
-models/checkpoints/NAFNet-SIDD-width32.pth
+checkpoints/NAFNet-SIDD-width32.pth
 ```
 
 BasicSR wrappers containing `params`, `params_ema`, `state_dict`, `net_g`, or
 `model` are accepted and loaded strictly. The official generic
-`NAFNet-SIDD-width32.pth` is 116,861,841 bytes and is tracked with Git LFS. It
-is a SIDD denoising checkpoint, not a retinal-trained model. The loader reads
-it directly and never downloads weights. Set `DR_CHECKPOINT_DIR` to use an
-alternative flat checkpoint directory.
+`NAFNet-SIDD-width32.pth` is a SIDD denoising checkpoint, not a retinal-trained
+model. It is local-only and excluded from Git. The loader reads it directly and
+never downloads weights. Callers can pass an explicit checkpoint path to use an
+alternative file.
 
 The locally prepared retinal training setup used aligned 384x384 RGB pairs,
 256x256 training crops, no flip/rotation augmentation, AdamW, PSNR loss, and

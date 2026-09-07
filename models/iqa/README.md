@@ -56,7 +56,7 @@ Quality Class
 Final calibrated checkpoint:
 
 ```text
-models/checkpoints/final_efficientnet_iqa.pth
+checkpoints/final_efficientnet_iqa.pth
 ```
 
 ## 4. Current Performance
@@ -106,12 +106,19 @@ The backend does not need to know the internal EfficientNet architecture.
 ## 6. Repository Structure
 
 ```text
-models/
+repository-root/
 ├── checkpoints/
+│   ├── efficientnet_b0_rwightman-7f5810bc.pth
 │   └── final_efficientnet_iqa.pth
-└── iqa/
-    └── README.md
+└── models/
+    └── iqa/
+        └── README.md
 ```
+
+The `checkpoints/` directory is local-only and is not included in Git clones.
+Create it and supply both checkpoints before running inference. The pretrained
+EfficientNet-B0 backbone is loaded from the local file and is never downloaded
+automatically.
 
 The retinal-image dataset is **not included in the repository**.
 
@@ -124,7 +131,7 @@ Model            → EfficientNet-B0
 Class mapping    → 0 Reject / 1 Usable / 2 Good
 Classifier head  → 1280 → 128 → 3
 Dropout          → 0.30
-Final checkpoint → models/checkpoints/final_efficientnet_iqa.pth
+Final checkpoint → checkpoints/final_efficientnet_iqa.pth
 ```
 
 Most importantly, **inference preprocessing must match the preprocessing used during training.**

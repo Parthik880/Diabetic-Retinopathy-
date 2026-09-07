@@ -10,7 +10,12 @@ from PIL import Image
 from torch import nn
 from torchvision import models, transforms
 
-from .model import DEFAULT_CHECKPOINT_PATH, IQA_CLASS_NAMES, EfficientNetIQA
+from .model import (
+    DEFAULT_BACKBONE_CHECKPOINT_PATH,
+    DEFAULT_CHECKPOINT_PATH,
+    IQA_CLASS_NAMES,
+    EfficientNetIQA,
+)
 
 IMAGE_SIZE = 224
 
@@ -24,13 +29,27 @@ class EfficientNetIQAService:
         device: str | torch.device | None = None,
         *,
         checkpoint: str | Path | None = None,
+        backbone_checkpoint_path: str | Path = DEFAULT_BACKBONE_CHECKPOINT_PATH,
     ):
         # Support the existing IQAModel(checkpoint=...) keyword.
         self.checkpoint_path = Path(
             checkpoint if checkpoint is not None else checkpoint_path
         ).expanduser().resolve()
         if not self.checkpoint_path.is_file():
-            raise FileNotFoundError(f"IQA checkpoint not found: {self.checkpoint_path}")
+            raise FileNotFoundError(
+                f"IQA checkpoint not found: {self.checkpoint_path}. "
+                "Place the required model checkpoint in the repository's "
+                "checkpoints/ directory or pass a valid checkpoint path."
+            )
+        self.backbone_checkpoint_path = Path(
+            backbone_checkpoint_path
+        ).expanduser().resolve()
+        if not self.backbone_checkpoint_path.is_file():
+            raise FileNotFoundError(
+                f"IQA backbone checkpoint not found: {self.backbone_checkpoint_path}. "
+                "Place the required model checkpoint in the repository's "
+                "checkpoints/ directory or pass a valid backbone checkpoint path."
+            )
         self.device = torch.device(
             device if device is not None else
             ("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,8 +63,14 @@ class EfficientNetIQAService:
         self.classifier = EfficientNetIQA()
         self.classifier.load_state_dict(saved["model_state_dict"], strict=True)
         self.classifier = self.classifier.to(self.device).eval()
-        efficientnet = models.efficientnet_b0(
-            weights=models.EfficientNet_B0_Weights.DEFAULT
+        efficientnet = models.efficientnet_b0(weights=None)
+        efficientnet.load_state_dict(
+            torch.load(
+                self.backbone_checkpoint_path,
+                map_location=self.device,
+                weights_only=True,
+            ),
+            strict=True,
         )
         efficientnet.eval()
         for parameter in efficientnet.parameters():

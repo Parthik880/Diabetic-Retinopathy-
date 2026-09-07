@@ -1,5 +1,5 @@
 {
-  "checkpoint": "models/checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth",
+  "checkpoint": "checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth",
   "epoch": 18,
   "threshold": 0.5,
   "validation": {

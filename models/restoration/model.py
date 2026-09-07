@@ -7,12 +7,11 @@ from pathlib import Path
 
 import torch
 
-from models.checkpoints import NAFNET_CHECKPOINT
-
 from .nafnet import NAFNet
 
 
-DEFAULT_CHECKPOINT_PATH = NAFNET_CHECKPOINT
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CHECKPOINT_PATH = REPO_ROOT / "checkpoints" / "NAFNet-SIDD-width32.pth"
 NAFNET_CONFIG = {
     "img_channel": 3,
     "width": 32,
@@ -59,7 +58,9 @@ def load_restoration_model(
     path = Path(checkpoint_path).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(
-            f"NAFNet checkpoint not found: {path}. See models/restoration/README.md."
+            f"NAFNet checkpoint not found: {path}. "
+            "Place the required model checkpoint in the repository's "
+            "checkpoints/ directory or pass a valid checkpoint_path."
         )
     try:
         checkpoint = torch.load(path, map_location="cpu", weights_only=True)

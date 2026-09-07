@@ -4,7 +4,7 @@ Dataset: DDR + IDRiD
 Resolution: 768x768
 
 Baseline source:
-models/checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth
+checkpoints/lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth
 
 Epoch: 18
 
@@ -37,5 +37,5 @@ Epoch 18 achieved the best Dice, IoU, F1 and AUPRC
 of the completed 20-epoch training run.
 
 Provenance:
-Copied without modification from:
-C:\Users\ADMIN\Desktop\u_net\checkpoints\epoch_018_best_dice.pth
+Copied without modification from the original training artifact named:
+epoch_018_best_dice.pth

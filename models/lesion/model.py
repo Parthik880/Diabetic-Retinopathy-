@@ -15,10 +15,12 @@ from torchvision.models import (
     mobilenet_v3_large,
 )
 
-from models.checkpoints import LESION_CHECKPOINT
-
-
-DEFAULT_CHECKPOINT_PATH = LESION_CHECKPOINT
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CHECKPOINT_PATH = (
+    REPO_ROOT
+    / "checkpoints"
+    / "lesion_mobilenetv3_unetpp_epoch_018_best_dice.pth"
+)
 DEFAULT_BACKBONE = "mobilenet_v3_large"
 NUM_LESION_CLASSES = 4
 
@@ -140,7 +142,11 @@ def load_lesion_model(
     """Load the selected epoch-18 four-channel baseline with strict matching."""
     path = Path(checkpoint_path).expanduser().resolve()
     if not path.is_file():
-        raise FileNotFoundError(f"Lesion checkpoint not found: {path}")
+        raise FileNotFoundError(
+            f"Lesion checkpoint not found: {path}. "
+            "Place the required model checkpoint in the repository's "
+            "checkpoints/ directory or pass a valid checkpoint_path."
+        )
     resolved_device = resolve_device(device)
     try:
         checkpoint = torch.load(path, map_location="cpu", weights_only=True)
