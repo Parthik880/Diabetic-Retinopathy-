@@ -1,9 +1,10 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { PatientRecord, AnomalyItem, EyeScanData } from '../types';
+import { normalizeEmail, normalizePhone } from '../contacts';
 
 interface AddPatientModalProps {
   onClose: () => void;
-  onAddPatient: (patient: PatientRecord) => void;
+  onAddPatient: (patient: PatientRecord) => Promise<void>;
 }
 
 const DEFAULT_LESIONS: AnomalyItem[] = [
@@ -83,6 +84,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
   
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
+    phone: '',
     patientIdNumber: generatedId,
     age: '54',
     gender: 'Female' as 'Female' | 'Male' | 'Other',
@@ -95,6 +98,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
   });
 
   const [customOsUrl, setCustomOsUrl] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [customOdUrl, setCustomOdUrl] = useState<string>('');
 
   const handleQuickFill = () => {
@@ -129,9 +134,18 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (saving || !formData.name.trim()) return;
+    setError(null);
+    let email: string, phone: string;
+    try {
+      email = normalizeEmail(formData.email);
+      phone = normalizePhone(formData.phone);
+    } catch (error) {
+      setError((error as Error).message);
+      return;
+    }
 
     const timestamp = new Date();
     const formattedDate = `${timestamp.getFullYear()}-${String(timestamp.getMonth() + 1).padStart(2, '0')}-${String(
@@ -220,9 +234,10 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
     }
 
     const newPatient: PatientRecord = {
-      id: `pt-${Date.now()}`,
+      id: crypto.randomUUID(),
       patientIdNumber: formData.patientIdNumber,
       name: formData.name.trim(),
+      email, phone,
       age: parseInt(formData.age, 10) || 50,
       gender: formData.gender,
       dob: formData.dob,
@@ -255,8 +270,13 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
       isFlagged: false
     };
 
-    onAddPatient(newPatient);
-    onClose();
+    setSaving(true);
+    try {
+      await onAddPatient(newPatient);
+      onClose();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Registration could not be saved. Please retry.');
+    } finally { setSaving(false); }
   };
 
   return (
@@ -282,6 +302,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
+            aria-label="Close registration"
             className="p-1 rounded-full hover:bg-surface-container transition-colors text-on-surface-variant"
           >
             <span className="material-symbols-outlined text-xl">close</span>
@@ -319,6 +341,7 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
                 <input
                   type="text"
                   required
+                  aria-label="Full name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Jonathan Mercer"
@@ -333,6 +356,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
                 <input
                   type="text"
                   value={formData.patientIdNumber}
+                  required
+                  aria-label="Patient ID"
                   onChange={(e) => setFormData({ ...formData, patientIdNumber: e.target.value })}
                   className="w-full px-3 py-2 bg-surface-container-low border border-outline rounded-lg text-xs md:text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                 />
@@ -375,6 +400,24 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
                 />
               </div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block text-sm font-bold text-on-surface">
+              Phone number <span className="font-normal text-on-surface-variant">(optional)</span>
+              <input type="tel" autoComplete="tel" maxLength={32} value={formData.phone}
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+919876543210" aria-describedby="phone-hint"
+                className="mt-1 w-full px-3 py-2 bg-surface-container-low border border-outline rounded-lg text-sm font-normal focus:outline-none focus:ring-2 focus:ring-primary" />
+              <span id="phone-hint" className="mt-1 block text-xs font-normal text-on-surface-variant">7–15 digits; country code recommended.</span>
+            </label>
+            <label className="block text-sm font-bold text-on-surface">
+              Email address <span className="font-normal text-on-surface-variant">(optional)</span>
+              <input type="email" autoComplete="email" maxLength={254} value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                placeholder="test@example.com"
+                className="mt-1 w-full px-3 py-2 bg-surface-container-low border border-outline rounded-lg text-sm font-normal focus:outline-none focus:ring-2 focus:ring-primary" />
+            </label>
           </div>
 
           {/* Section 2: Clinical Biomarkers */}
@@ -535,21 +578,23 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
           </div>
 
           {/* Modal Actions */}
+          {error && <p role="alert" className="rounded-lg bg-error-container p-3 text-sm text-error">{error}</p>}
           <div className="pt-4 border-t-2 border-outline-variant flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
+              disabled={saving}
               className="px-4 py-2 text-xs md:text-sm font-bold text-on-surface-variant hover:text-on-surface transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.name.trim()}
+              disabled={saving || !formData.name.trim() || !formData.patientIdNumber.trim()}
               className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs md:text-sm rounded-lg hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-base">check</span>
-              Register & Begin Screening
+              {saving ? 'Saving patient…' : 'Register & Begin Screening'}
             </button>
           </div>
         </form>

@@ -31,6 +31,7 @@ yarn-error.log*
 
 # Frontend generated build
 frontend/dist/
+checkpoint/
 
 # PyInstaller outputs. Keep the maintained spec(s) tracked:
 # RetinaGramBackend.spec (CPU-guarded) and RetinaScanBackend.spec.

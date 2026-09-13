@@ -1,5 +1,5 @@
-import { analyzeImage, resetPatient, resetScan, projectPatient, PIPELINE_STATE_LABELS, persistHistory, saveReport } from './api';
-import { useRef, useState } from 'react';
+import { analyzeImage, resetPatient, resetScan, projectPatient, PIPELINE_STATE_LABELS, persistHistory, saveReport, registerPatient, loadPatients, persistSession } from './api';
+import { useEffect, useRef, useState } from 'react';
 import { TabType, PatientRecord, HistoryRecord } from './types';
 import { SAMPLE_PATIENTS } from './data/samplePatients';
 import { TopAppBar } from './components/TopAppBar';
@@ -15,6 +15,7 @@ import { HistoryScreen } from './components/HistoryScreen';
 import { eyesRequiringAnalysis } from './analysisWorkflow';
 import { createNewSession, sessionHasData } from './sessionWorkflow';
 import { NewSessionDialog } from './components/NewSessionDialog';
+import { CloudSyncScreen } from './components/CloudSyncScreen';
 
 export interface AnalysisProgress {
   currentEye: 'OS' | 'OD';
@@ -37,6 +38,7 @@ function patientFromHistory(record: HistoryRecord, eye: 'OS' | 'OD'): PatientRec
   return projectPatient({
     id: record.patient.id, sessionId: record.session_id, sessionStartedAt: record.scan_datetime,
     patientIdNumber: record.patient_id, name: record.patient_name,
+    phone: record.patient.phone, email: record.patient.email,
     age: record.patient.age, gender: record.patient.gender, dob: record.patient.dob,
     diabeticHistoryYears: record.patient.diabeticHistoryYears, hba1c: record.patient.hba1c,
     bloodPressure: record.patient.bloodPressure, studyDate: record.scan_datetime,
@@ -67,6 +69,21 @@ export default function App() {
   const [isStartingSession, setIsStartingSession] = useState(false);
   const [newSessionError, setNewSessionError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [patientLoadError, setPatientLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (smokeMode) return;
+    let cancelled = false;
+    loadPatients().then(stored => {
+      if (cancelled) return;
+      const existing = new Set(patientsRef.current.map(patient => patient.id));
+      const merged = [...patientsRef.current, ...stored.filter(patient => !existing.has(patient.id))];
+      patientsRef.current = merged;
+      setPatients(merged);
+      setCurrentPatientId(selected => selected || merged[0]?.id || '');
+    }).catch(error => { if (!cancelled) setPatientLoadError(error instanceof Error ? error.message : 'Could not load patients. Restart to retry.'); });
+    return () => { cancelled = true; };
+  }, [smokeMode]);
 
   const currentPatientSource = patients.find((p) => p.id === currentPatientId) || patients[0];
   const currentPatient = currentPatientSource ? projectPatient(currentPatientSource) : undefined;
@@ -91,8 +108,8 @@ export default function App() {
     mutatePatient(updated.id, () => updated);
   };
 
-  const handleAddPatient = (inputPatient: PatientRecord) => {
-    const newPatient = resetPatient(inputPatient);
+  const handleAddPatient = async (inputPatient: PatientRecord) => {
+    const newPatient = await registerPatient(resetPatient(inputPatient));
     replacePatients([newPatient, ...patientsRef.current]);
     setCurrentPatientId(newPatient.id);
     setActiveTab('capture');
@@ -108,6 +125,7 @@ export default function App() {
     try {
       if (saveCurrent) await persistHistory(snapshot);
       const fresh = createNewSession(snapshot);
+      await persistSession(fresh);
       mutatePatient(snapshot.id, () => fresh);
       setAnalysisProgress(null);
       setActiveTab('capture');
@@ -158,7 +176,7 @@ export default function App() {
         mutatePatient(patientId, p => p[key].imageUrl === imageUrl && p[key].analysisRequestId === requestId
           ? { ...p, [key]: { ...p[key], analysisState, analysisJobId: jobId, statusText: PIPELINE_STATE_LABELS[analysisState] } }
           : p);
-      });
+      }, patient.sessionId);
       const updated = mutatePatient(patientId, p => p[key].imageUrl === imageUrl && p[key].analysisRequestId === requestId
         ? { ...p, [key]: { ...p[key], result, analysisState: result.state,
             analysisRequestId: undefined, analysisJobId: result.run_id,
@@ -169,7 +187,7 @@ export default function App() {
       console.info(`[RetinaGram][${patient.patientIdNumber}][${eye}] ${PIPELINE_STATE_LABELS[result.state]}`);
       if (updated && (updated.leftEye.result?.state === 'COMPLETE' || updated.rightEye.result?.state === 'COMPLETE')) {
         try { await persistHistory(updated); }
-        catch (historyError) { console.error('[RetinaGram] History persistence failed', historyError); }
+        catch { setToastMessage('History could not be saved. Local patient database unavailable.'); }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Analysis failed. Check backend logs and retry.';
@@ -183,6 +201,7 @@ export default function App() {
 
   const handleAnalyze = async () => {
     if (!currentPatient) return;
+    await persistSession(currentPatient);
     const eyes = eyesRequiringAnalysis(currentPatient);
     if (!eyes.length) throw new Error(currentPatient.leftEye.imageUrl || currentPatient.rightEye.imageUrl
       ? 'Every uploaded eye is already complete.' : 'Select at least one retinal image first.');
@@ -230,8 +249,6 @@ export default function App() {
         patient={currentPatient}
         patients={patients}
         onSelectPatient={(p) => setCurrentPatientId(p.id)}
-        onOpenAddPatient={() => setIsAddPatientOpen(true)}
-        onStartNewSession={handleNewSessionRequest}
       />
 
       {/* Floating Notification Toast */}
@@ -244,8 +261,14 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 pt-[72px]">
+        {patientLoadError && <p role="alert" className="mx-auto max-w-7xl px-6 py-3 text-error">{patientLoadError}</p>}
         <div role="status" className="max-w-7xl mx-auto px-6 py-2 text-sm text-on-surface-variant">Local offline inference · Patient scans and history stay on this PC.</div>
-        {!currentPatient && activeTab !== 'history' && (
+        {activeTab === 'cloud' && <CloudSyncScreen onBack={() => setActiveTab('capture')} onDataCleared={() => {
+          // Discard in-memory scans after cleanup so a stale tab cannot re-save deleted history.
+          replacePatients([]); setCurrentPatientId(''); setAnalysisProgress(null);
+          loadPatients().then(replacePatients).catch(() => setPatientLoadError('Local patient database unavailable.'));
+        }} />}
+        {!currentPatient && activeTab !== 'history' && activeTab !== 'cloud' && (
           <section className="mx-auto mt-16 max-w-2xl px-6 text-center">
             <span className="material-symbols-outlined text-6xl text-primary" aria-hidden="true">person_add</span>
             <h1 className="mt-4 font-headline text-3xl font-extrabold tracking-[-0.03em]">Begin a retinal screening session</h1>
@@ -262,6 +285,7 @@ export default function App() {
             onNavigate={setActiveTab}
             onOpenUploadModal={(eye) => setUploadModalState({ isOpen: true, eye })}
             onOpenAddPatient={() => setIsAddPatientOpen(true)}
+            onStartNewSession={handleNewSessionRequest}
           />
         )}
 

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, clipboard } = require('electron');
+const { openCommunication } = require('./communication.cjs');
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const net = require('node:net');
@@ -6,6 +7,8 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 let backend;
+let applicationOrigin;
+let applicationContents;
 let stopping = false;
 const devRoot = path.resolve(__dirname, '..');
 const instance = randomUUID();
@@ -85,6 +88,7 @@ async function start() {
   const usePackagedBackend = app.isPackaged || fs.existsSync(packagedBackend);
   const port = await availablePort();
   const origin = `http://127.0.0.1:${port}`;
+  applicationOrigin = origin;
   const log = fs.openSync(path.join(logs, 'backend.log'), 'a');
   const backendCommand = usePackagedBackend ? packagedBackend : python;
   const backendCwd = usePackagedBackend ? backendRoot : devRoot;
@@ -129,6 +133,7 @@ async function start() {
       : path.join(devRoot, 'frontend', 'public', 'logo.png.jpeg'), backgroundColor: '#f8fafc',
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, backgroundThrottling: process.env.RETINA_SMOKE !== '1' }
   });
+  applicationContents = window.webContents;
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => { if (new URL(url).origin !== origin) event.preventDefault(); });
   await window.loadURL(process.env.RETINA_SMOKE === '1' ? `${origin}/?smoke=1` : origin);
@@ -145,6 +150,38 @@ async function start() {
     app.quit();
   }
 }
+
+ipcMain.handle('retinagram:communicate', async (event, request) => {
+  if (event.sender !== applicationContents || event.senderFrame !== applicationContents?.mainFrame
+      || new URL(event.senderFrame.url).origin !== applicationOrigin) {
+    return { opened: false, error: 'This window cannot open communication apps.' };
+  }
+  return openCommunication(request, shell);
+});
+
+ipcMain.handle('retinagram:open-data-folder', async event => {
+  if (event.sender !== applicationContents || event.senderFrame !== applicationContents?.mainFrame
+      || new URL(event.senderFrame.url).origin !== applicationOrigin) {
+    return { opened: false, error: 'This window cannot open the data folder.' };
+  }
+  // No renderer-provided path or credentials. Only the controlled runtime directory.
+  try {
+    const folder = path.join(app.getPath('userData'), 'runtime');
+    fs.mkdirSync(folder, { recursive: true });
+    const error = await shell.openPath(folder);
+    return error ? { opened: false, error: 'Windows could not open the data folder.' } : { opened: true };
+  } catch { return { opened: false, error: 'Windows could not open the data folder.' }; }
+});
+
+ipcMain.handle('retinagram:copy-text', async (event, value) => {
+  if (event.sender !== applicationContents || event.senderFrame !== applicationContents?.mainFrame
+      || new URL(event.senderFrame.url).origin !== applicationOrigin
+      || typeof value !== 'string' || value.length > 4000) {
+    return { copied: false };
+  }
+  try { await clipboard.writeText(value); return { copied: true }; }
+  catch { return { copied: false }; }
+});
 
 ipcMain.handle('retinagram:choose-report-folder', async () => {
   if (process.env.RETINA_SMOKE === '1') {

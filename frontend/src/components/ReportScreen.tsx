@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ACTIVE_ANALYSIS_STATES, PIPELINE_STATE_LABELS, saveBothReports, saveReport } from '../api';
 import { PatientRecord } from '../types';
 import { gradeLabel, LESION_LABELS, qualityLabel, qualityMessage, screeningRecommendation } from '../reporting';
+import { SendReportModal } from './SendReportModal';
 
 interface ReportScreenProps {
   patient: PatientRecord;
@@ -15,6 +16,7 @@ export function ReportScreen({ patient, onUpdatePatient, onOpenReferralModal }: 
   const grade = result?.grading?.predicted_grade;
   const [saveState, setSaveState] = useState<'idle' | 'choosing' | 'saving' | 'saving-both'>('idle');
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [sendingTo, setSendingTo] = useState<PatientRecord | null>(null);
 
   const handleSave = async () => {
     if (!result) return;
@@ -187,6 +189,9 @@ export function ReportScreen({ patient, onUpdatePatient, onOpenReferralModal }: 
       </section>
 
       <div className="no-print mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <button type="button" onClick={() => setSendingTo(patient)} disabled={saveState !== 'idle'} className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-base font-extrabold text-on-primary hover:bg-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50">
+          <span className="material-symbols-outlined text-xl" aria-hidden="true">send</span>Send Report
+        </button>
         <button type="button" onClick={handleSave} disabled={saveState !== 'idle'} className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-base font-extrabold text-on-primary shadow-[0_8px_24px_rgba(0,82,39,0.22)] transition-colors hover:bg-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-65">
           <span className="material-symbols-outlined text-xl" aria-hidden="true">{saveState === 'saving' ? 'progress_activity' : 'save'}</span>
           {saveState === 'choosing' ? 'Choose destination...' : saveState === 'saving' ? 'Saving report...' : `Save ${patient.activeEye === 'OS' ? 'Left Eye' : 'Right Eye'} Report`}
@@ -197,6 +202,7 @@ export function ReportScreen({ patient, onUpdatePatient, onOpenReferralModal }: 
           Save referral draft
         </button>
       </div>
+      {sendingTo && <SendReportModal patient={sendingTo} onClose={() => setSendingTo(null)} />}
     </div>
   );
 }

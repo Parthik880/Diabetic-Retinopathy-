@@ -1,5 +1,5 @@
 import type { AnalysisResult } from './api';
-export type TabType = 'capture' | 'analysis' | 'compare' | 'report' | 'history';
+export type TabType = 'capture' | 'analysis' | 'compare' | 'report' | 'history' | 'cloud';
 export type AnalysisState =
   | 'WAITING'
   | 'IQA'
@@ -68,6 +68,8 @@ export interface EyeScanData {
 }
 
 export interface PatientRecord {
+  phone?: string;
+  email?: string;
   id: string;
   sessionId?: string;
   sessionStartedAt?: string;
@@ -123,6 +125,8 @@ export interface HistoryRecord {
   patient_id: string;
   patient_name: string;
   patient: {
+    phone?: string;
+    email?: string;
     id: string;
     age: number;
     gender: 'Female' | 'Male' | 'Other';

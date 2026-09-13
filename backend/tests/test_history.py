@@ -11,6 +11,44 @@ from app.history import HistoryStore
 
 
 class HistoryStoreTests(unittest.TestCase):
+    def test_registration_survives_restart_without_a_scan(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'history.json'
+            patient = {'id': 'test', 'patientIdNumber': 'RH-TEST', 'name': 'Test Patient',
+                       'phone': '+91 (98765) 43210', 'email': ' test@example.com ',
+                       'leftEye': {}, 'rightEye': {}}
+            HistoryStore(path).register_patient(patient)
+            reopened = HistoryStore(path)
+            self.assertEqual(reopened.patients()[0]['phone'], '+919876543210')
+            self.assertEqual(reopened.patients()[0]['email'], 'test@example.com')
+            self.assertEqual(reopened.list(), [])
+            with self.assertRaisesRegex(ValueError, 'already registered'):
+                reopened.register_patient(patient)
+
+    def test_contacts_optional_invalid_and_old_history(self):
+        with TemporaryDirectory() as directory:
+            store = HistoryStore(Path(directory) / 'history.json')
+            patient = {'id': 'legacy', 'patientIdNumber': 'RH-OLD', 'name': 'Old Patient', 'leftEye': {}, 'rightEye': {}}
+            saved = store.register_patient(patient)
+            self.assertEqual((saved['email'], saved['phone']), ('', ''))
+            for key, value in [('phone', '123'), ('email', 'not an email')]:
+                with self.assertRaises(ValueError):
+                    store.register_patient({**patient, 'id': 'bad', 'patientIdNumber': 'BAD', key: value})
+            old = {'session_id': 'old', 'patient': {'id': 'legacy'}, 'left_eye': {'available': True}}
+            store.upsert(old)
+            self.assertNotIn('email', store.list()[0]['patient'])
+            old['patient'].update(phone='+919876543210', email='test@example.com')
+            store.upsert(old)
+            self.assertEqual(store.list()[0]['patient']['email'], 'test@example.com')
+
+    def test_corrupt_registry_is_not_overwritten(self):
+        with TemporaryDirectory() as directory:
+            store = HistoryStore(Path(directory) / 'history.json')
+            store.patients_path.write_text('{broken', encoding='utf-8')
+            with self.assertRaises(ValueError):
+                store.patients()
+            self.assertEqual(store.patients_path.read_text(encoding='utf-8'), '{broken')
+
     def test_completed_session_is_atomic_and_upserts_same_session(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "history.json"

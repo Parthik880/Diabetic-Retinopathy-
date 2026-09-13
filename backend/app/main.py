@@ -6,6 +6,11 @@ import re
 from pathlib import Path
 from uuid import uuid4
 from datetime import datetime, timezone
+from threading import RLock
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from typing import Literal
@@ -19,9 +24,13 @@ from inference import restoration
 from inference.pipeline import PipelineState, run_analysis_pipeline
 from utils.reporting import create_report_root, export_report_bundle
 from app.jobs import AnalysisJobManager
-from app.history import HistoryStore
+from db.session import make_engine, verify_local_storage
+from db.repository import HistoryRepository
+from services.sync_service import SyncService
+from services.storage_service import StorageService
+from schemas.storage import PatientInput, SyncSettingsInput, ClearInput
 
-RUNTIME_ROOT = Path(os.environ.get('RETINA_RUNTIME_ROOT', ROOT / 'work')).expanduser().resolve()
+RUNTIME_ROOT = Path(os.environ.get('RETINA_RUNTIME_ROOT', Path(os.environ.get('APPDATA', Path.home() / '.local' / 'share')) / 'RetinaGram CPU' / 'runtime')).expanduser().resolve()
 RUNS = RUNTIME_ROOT / 'runs'
 RUNS.mkdir(parents=True, exist_ok=True)
 
@@ -30,11 +39,18 @@ RUNS.mkdir(parents=True, exist_ok=True)
 async def lifespan(app):
     app.state.registry = ModelRegistry()
     app.state.jobs = AnalysisJobManager(max_workers=1)
-    app.state.history = HistoryStore(RUNTIME_ROOT / 'history' / 'index.json')
+    app.state.storage_lock = RLock()
+    app.state.history = None
+    try:
+        database()
+    except HTTPException:
+        logging.warning('Local patient database unavailable at startup; no JSON fallback is used.')
     try:
         yield
     finally:
         app.state.jobs.shutdown()
+        if app.state.history:
+            app.state.history.engine.dispose()
 
 
 app = FastAPI(title='Retina desktop inference', lifespan=lifespan)
@@ -44,9 +60,47 @@ app.add_middleware(CORSMiddleware,
 app.mount('/artifacts', StaticFiles(directory=RUNS), name='artifacts')
 
 
+def database():
+    if app.state.history is None:
+        engine = None
+        try:
+            engine = make_engine()
+            with engine.connect() as connection:
+                app.state.postgres_data_directory = verify_local_storage(connection)
+                revision = connection.execute(text('SELECT version_num FROM alembic_version')).scalar()
+                if revision != '0001_local_storage':
+                    raise RuntimeError('Run Alembic upgrade head.')
+            history_path = Path(os.environ.get('RETINA_HISTORY_PATH', RUNTIME_ROOT / 'history' / 'index.json'))
+            repository = HistoryRepository(engine, RUNTIME_ROOT, history_path)
+            repository.migrate_json()
+            app.state.history = repository
+            app.state.sync = SyncService(repository)
+            app.state.storage = StorageService(repository)
+        except Exception as exc:
+            if engine is not None:
+                engine.dispose()
+            logging.warning('Local database initialization failed (%s).', type(exc).__name__)
+            raise HTTPException(503, 'Local patient database unavailable. Check backend/.env, PostgreSQL, and Alembic migrations. Legacy JSON was retained.') from None
+    return app.state.history
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_error(_request, error):
+    logging.warning('Local database operation failed (%s).', type(error).__name__)
+    message = 'This record already exists or conflicts with a saved record.' if isinstance(error, IntegrityError) else 'Local patient database unavailable.'
+    return JSONResponse(status_code=409 if isinstance(error, IntegrityError) else 503, content={'detail': message})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_request, error):
+    # Pydantic's default response echoes input values (including contact details).
+    return JSONResponse(status_code=422, content={'detail': '; '.join(str(item['msg']) for item in error.errors())})
+
+
 @app.get('/health')
 def health():
-    return {**app.state.registry.health(), 'instance': os.environ.get('RETINA_INSTANCE')}
+    return {**app.state.registry.health(), 'instance': os.environ.get('RETINA_INSTANCE'),
+            'local_database': 'available' if app.state.history else 'unavailable'}
 
 
 def analyze_image(image, eye=None):
@@ -87,11 +141,14 @@ async def analyze(file: UploadFile = File(...), eye: Literal['OS', 'OD'] | None 
         raise HTTPException(415, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return await run_in_threadpool(analyze_image, image, eye)
+    def analyze_locked():
+        with app.state.storage_lock:
+            return analyze_image(image, eye)
+    return await run_in_threadpool(analyze_locked)
 
 
 @app.post('/api/analysis-jobs', status_code=202)
-async def create_analysis_job(file: UploadFile = File(...), eye: Literal['OS', 'OD'] | None = Form(None)):
+async def create_analysis_job(file: UploadFile = File(...), eye: Literal['OS', 'OD'] | None = Form(None), session_id: str | None = Form(None)):
     try:
         data = await file.read(MAX_BYTES + 1)
     finally:
@@ -105,23 +162,26 @@ async def create_analysis_job(file: UploadFile = File(...), eye: Literal['OS', '
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
-    run_id = uuid4().hex
-    destination = RUNS / run_id
-    destination.mkdir()
-    path = destination / 'input.png'
-    image.save(path)
     jobs = app.state.jobs
-    jobs.create(run_id, eye)
+    if session_id:
+        database()
+    with app.state.storage_lock:
+        run_id = uuid4().hex
+        destination = RUNS / run_id
+        destination.mkdir()
+        path = destination / 'input.png'
+        image.save(path)
+        jobs.create(run_id, eye)
+    def analyze_and_save():
+        result = run_analysis_pipeline(
+            original_path=path, registry=app.state.registry, run_id=run_id,
+            runs_root=RUNS, eye=eye, on_state=lambda state: jobs.transition(run_id, state))
+        if session_id and eye:
+            database().save_analysis(session_id, eye, result)
+        return result
     jobs.submit(
         run_id,
-        lambda: run_analysis_pipeline(
-            original_path=path,
-            registry=app.state.registry,
-            run_id=run_id,
-            runs_root=RUNS,
-            eye=eye,
-            on_state=lambda state: jobs.transition(run_id, state),
-        ),
+        analyze_and_save,
     )
     return {'job_id': run_id, 'state': PipelineState.WAITING.value}
 
@@ -173,26 +233,33 @@ async def restore(file: UploadFile = File(...)):
         raise HTTPException(415, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return await run_in_threadpool(restore_image, image)
+    def restore_locked():
+        with app.state.storage_lock:
+            return restore_image(image)
+    return await run_in_threadpool(restore_locked)
 
 
 def create_report_bundle(payload):
+    repository = database()
     run_id = str(payload.get('run_id') or '')
     if not re.fullmatch(r'[0-9a-f]{32}', run_id):
         raise HTTPException(400, 'A valid completed inference run is required.')
     destination = Path(str(payload.get('destination') or '')).expanduser()
     run_dir = RUNS / run_id
     try:
+        session_id = str(payload.get('session_id') or '')
+        eye = str((payload.get('patient') or {}).get('eye') or '')
+        patient = repository.report_patient(session_id, eye, run_id)
         exported = export_report_bundle(
             destination,
             run_dir=run_dir,
-            patient=payload.get('patient') or {},
+            patient=patient,
             logo_path=ROOT / 'frontend' / 'public' / 'logo.png.jpeg',
         )
         session_id = str(payload.get('session_id') or '')
         eye = str((payload.get('patient') or {}).get('eye') or '')
         if session_id and eye in {'OS', 'OD'}:
-            app.state.history.update_report_path(session_id, eye, exported['report'])
+            repository.update_report_path(session_id, eye, exported['report'])
         return exported
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -203,10 +270,14 @@ def create_report_bundle(payload):
 
 @app.post('/api/reports/export')
 async def export_report(payload: dict):
-    return await run_in_threadpool(create_report_bundle, payload)
+    def export_locked():
+        with app.state.storage_lock:
+            return create_report_bundle(payload)
+    return await run_in_threadpool(export_locked)
 
 
 def create_bilateral_report_bundle(payload):
+    repository = database()
     destination = Path(str(payload.get('destination') or '')).expanduser()
     patient = payload.get('patient') or {}
     reports = payload.get('reports') or []
@@ -223,10 +294,11 @@ def create_bilateral_report_bundle(payload):
             exported.append(export_report_bundle(
                 destination,
                 run_dir=RUNS / run_id,
-                patient={**patient, 'eye': eye, 'scan_datetime': item.get('scan_datetime')},
+                patient=repository.report_patient(payload.get('session_id'), eye, run_id),
                 logo_path=ROOT / 'frontend' / 'public' / 'logo.png.jpeg',
                 report_root=report_root,
             ))
+            repository.update_report_path(payload.get('session_id'), eye, exported[-1]['report'])
         return {
             'folder': str(report_root),
             'report': exported[0]['report'],
@@ -244,20 +316,105 @@ def create_bilateral_report_bundle(payload):
 
 @app.post('/api/reports/export-both')
 async def export_both_reports(payload: dict):
-    return await run_in_threadpool(create_bilateral_report_bundle, payload)
+    def export_locked():
+        with app.state.storage_lock:
+            return create_bilateral_report_bundle(payload)
+    return await run_in_threadpool(export_locked)
 
 
 @app.get('/api/history')
 def history_records():
-    return {'records': app.state.history.list(), 'storage_path': str(app.state.history.path)}
+    return {'records': database().list(), 'storage': 'PostgreSQL'}
+
+
+@app.get('/api/patients')
+def registered_patients():
+    try:
+        return {'patients': database().patients()}
+    except ValueError as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+@app.post('/api/patients')
+def register_patient(payload: PatientInput):
+    try:
+        with app.state.storage_lock:
+            return {'patient': database().register_patient(payload.model_dump())}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post('/api/history/sessions')
 def save_history_session(payload: dict):
     try:
-        return {'record': app.state.history.upsert(payload)}
+        with app.state.storage_lock:
+            return {'record': database().upsert(payload)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@app.get('/api/patients/{patient_id}')
+def patient_details(patient_id: str):
+    try:
+        return {'patient': database().patient(patient_id)}
+    except ValueError:
+        raise HTTPException(404, 'Patient not found.') from None
+
+
+@app.post('/api/sessions')
+def start_session(payload: PatientInput):
+    try:
+        with app.state.storage_lock:
+            return database().start_session(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+
+
+@app.get('/api/sync')
+def sync_overview():
+    database()
+    return app.state.sync.overview(app.state.storage.counts())
+
+
+@app.post('/api/sync/settings')
+def sync_settings(payload: SyncSettingsInput):
+    database()
+    try:
+        return app.state.sync.save_settings(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+
+
+@app.post('/api/sync/connect')
+def sync_connect():
+    database()
+    return app.state.sync.connect()
+
+
+@app.post('/api/sync/now')
+def sync_now():
+    database()
+    return app.state.sync.sync_now()
+
+
+@app.post('/api/storage/preview')
+def clear_preview(payload: ClearInput):
+    database()
+    return app.state.storage.preview(payload.categories)
+
+
+@app.post('/api/storage/clear')
+def clear_storage(payload: ClearInput):
+    database()
+    with app.state.storage_lock:
+        if app.state.jobs.has_active_jobs():
+            raise HTTPException(409, 'Wait for the active analysis to finish before clearing local data.')
+        try:
+            return app.state.storage.clear(payload)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        except OSError:
+            raise HTTPException(500, 'Local cleanup failed. Database changes were rolled back; check the data folder for recovery files.') from None
 
 
 @app.post('/api/referral')

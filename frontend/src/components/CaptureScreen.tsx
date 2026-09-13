@@ -10,6 +10,7 @@ interface CaptureScreenProps {
   onNavigate: (tab: TabType) => void;
   onOpenUploadModal: (eye: 'OS' | 'OD') => void;
   onOpenAddPatient?: () => void;
+  onStartNewSession: () => void;
   analysisProgress: AnalysisProgress | null;
 }
 
@@ -20,6 +21,7 @@ export function CaptureScreen({
   onNavigate,
   onOpenUploadModal,
   onOpenAddPatient,
+  onStartNewSession,
   analysisProgress,
 }: CaptureScreenProps) {
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +69,10 @@ export function CaptureScreen({
               <span>New Patient</span>
             </button>
           )}
+          <button type="button" onClick={onStartNewSession} className="flex items-center gap-1.5 px-3 py-2 border border-primary text-primary rounded-lg font-bold text-xs hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-primary">
+            <span className="material-symbols-outlined text-base" aria-hidden="true">restart_alt</span>
+            New Session
+          </button>
         </div>
       </div>
 

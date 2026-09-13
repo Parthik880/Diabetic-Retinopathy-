@@ -77,3 +77,7 @@ class AnalysisJobManager:
 
     def shutdown(self) -> None:
         self._executor.shutdown(wait=True, cancel_futures=False)
+
+    def has_active_jobs(self) -> bool:
+        with self._lock:
+            return any(job['state'] not in {item.value for item in TERMINAL_STATES} for job in self._jobs.values())

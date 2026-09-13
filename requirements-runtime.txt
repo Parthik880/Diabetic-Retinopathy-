@@ -6,3 +6,7 @@ numpy==2.5.2
 scipy==1.18.1
 matplotlib==3.11.1
 reportlab==5.0.1
+SQLAlchemy==2.0.52
+psycopg[binary]==3.3.5
+alembic==1.20.0
+python-dotenv==1.2.3

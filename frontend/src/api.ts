@@ -128,7 +128,7 @@ export function projectPatient(patient: PatientRecord, eye = patient.activeEye, 
     retinalGrade: result?.grading?.predicted_grade ?? null,
     retinalGradeLabel: result?.grading ? 'Model class 0–4 (repository class ordering)' : 'No grading result for this image',
     overallConfidence: result?.grading ? Math.round(result.grading.confidence * 1000) / 10 : null,
-    criticalFinding: { ...emptyFinding, description: result ? result.warnings.join(' ') : 'Select a scan and run analysis.' },
+    criticalFinding: { ...emptyFinding, description: result ? (result.warnings || []).join(' ') : 'Select a scan and run analysis.' },
   };
 }
 
@@ -158,6 +158,7 @@ export async function analyzeImage(
   imageUrl: string,
   eye: 'OS' | 'OD',
   onStateChange?: (state: AnalysisState, jobId: string) => void,
+  sessionId?: string,
 ): Promise<AnalysisResult> {
   let blob: Blob;
   try {
@@ -171,6 +172,7 @@ export async function analyzeImage(
   const body = new FormData();
   body.append('file', blob, 'retinal-image');
   body.append('eye', eye);
+  if (sessionId) body.append('session_id', sessionId);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 300000);
   try {
@@ -296,6 +298,7 @@ export async function persistHistory(patient: PatientRecord): Promise<HistoryRec
         id: patient.id, age: patient.age, gender: patient.gender, dob: patient.dob,
         diabeticHistoryYears: patient.diabeticHistoryYears, hba1c: patient.hba1c,
         bloodPressure: patient.bloodPressure,
+        phone: patient.phone, email: patient.email,
       },
       scan_datetime: patient.sessionStartedAt || [patient.leftEye.capturedAt, patient.rightEye.capturedAt]
         .filter(Boolean).sort().at(-1) || new Date().toISOString(),
@@ -313,6 +316,36 @@ export async function loadHistory(): Promise<HistoryRecord[]> {
   const result = await response.json().catch(() => null);
   if (!response.ok) throw new Error(result?.detail || `History could not be loaded (${response.status}).`);
   return Array.isArray(result?.records) ? result.records : [];
+}
+
+export async function registerPatient(patient: PatientRecord): Promise<PatientRecord> {
+  const response = await fetch('/api/patients', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(resetPatient(patient)),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.detail || 'Registration could not be saved. Please retry.');
+  return resetPatient(result.patient);
+}
+
+export async function loadPatients(): Promise<PatientRecord[]> {
+  const response = await fetch('/api/patients');
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.detail || 'Registered patients could not be loaded. Restart the app to retry.');
+  return result.patients.map((patient: PatientRecord) => resetPatient(patient));
+}
+
+export async function loadPatient(patientId: string): Promise<PatientRecord> {
+  const response = await fetch(`/api/patients/${encodeURIComponent(patientId)}`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.detail || 'Local patient database unavailable.');
+  return result.patient;
+}
+
+export async function persistSession(patient: PatientRecord): Promise<void> {
+  const response = await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patient) });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.detail || 'Local patient database unavailable.');
 }
 
 export function exportResult(patient: PatientRecord) {

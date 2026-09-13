@@ -6,8 +6,6 @@ interface TopAppBarProps {
   patient?: PatientRecord;
   patients: PatientRecord[];
   onSelectPatient: (patient: PatientRecord) => void;
-  onOpenAddPatient: () => void;
-  onStartNewSession: () => void;
 }
 
 const tabs: Array<{ id: TabType; label: string; icon: string }> = [
@@ -18,10 +16,7 @@ const tabs: Array<{ id: TabType; label: string; icon: string }> = [
   { id: 'history', label: 'History', icon: 'history' },
 ];
 
-export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelectPatient, onOpenAddPatient, onStartNewSession }: TopAppBarProps) {
-  const sessionTime = patient?.sessionStartedAt && !Number.isNaN(Date.parse(patient.sessionStartedAt))
-    ? new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(patient.sessionStartedAt))
-    : null;
+export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelectPatient }: TopAppBarProps) {
   return (
     <header className="no-print fixed inset-x-0 top-0 z-40 h-[72px] border-b border-outline-variant bg-surface-container-lowest/95 px-4 shadow-[0_6px_24px_rgba(20,32,24,0.08)] backdrop-blur-md md:px-6">
       <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-4">
@@ -71,25 +66,8 @@ export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelect
               {patients.map((candidate) => <option key={candidate.id} value={candidate.id}>#{candidate.patientIdNumber} - {candidate.name}</option>)}
             </select>
           </label>}
-          <div className="hidden items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-primary xl:flex" title="All inference runs locally on this PC">
-            <span className="h-2 w-2 rounded-full bg-medical-green-bright shadow-[0_0_0_3px_rgba(74,222,128,0.15)]" />
-            Local session{sessionTime ? ` • ${sessionTime}` : ''}
-          </div>
-          {patient && <button
-            type="button"
-            onClick={onStartNewSession}
-            className="flex min-h-10 items-center gap-1.5 rounded-lg border border-primary bg-surface-container-lowest px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">restart_alt</span>
-            <span className="hidden xl:inline">New session</span>
-          </button>}
-          <button
-            type="button"
-            onClick={onOpenAddPatient}
-            className="flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-on-primary shadow-[0_3px_12px_rgba(0,82,39,0.2)] transition-colors hover:bg-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">person_add</span>
-            <span className="hidden xl:inline">New patient</span>
+          <button type="button" onClick={() => setActiveTab('cloud')} aria-current={activeTab === 'cloud' ? 'page' : undefined} className={`flex min-h-10 items-center gap-2 rounded-lg border border-primary px-4 text-sm font-bold focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${activeTab === 'cloud' ? 'bg-primary text-on-primary' : 'text-primary hover:bg-primary/10'}`}>
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">cloud</span>Cloud Sync
           </button>
         </div>
       </div>

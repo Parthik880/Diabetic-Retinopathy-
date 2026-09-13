@@ -36,11 +36,14 @@ hiddenimports = sorted(
         collect_submodules("torch.distributed")
         + collect_submodules("torchvision.models")
         + collect_submodules("torchvision.transforms")
+        + collect_submodules("sqlalchemy.dialects.postgresql")
+        + collect_submodules("psycopg_binary")
     )
 )
 binaries = collect_dynamic_libs("torch") + collect_dynamic_libs(
     "torchvision", search_patterns=["*.pyd", "*.dll"]
 )
+binaries += collect_dynamic_libs("psycopg_binary", search_patterns=["*.pyd", "*.dll"])
 
 # This inference server never compiles graphs. torchvision imports one helper
 # from torch._dynamo merely while registering optional ROI operations, so a
