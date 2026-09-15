@@ -17,34 +17,22 @@ from inference.pipeline import PipelineState, TERMINAL_STATES, normalize_quality
 LOGGER = logging.getLogger("uvicorn.error")
 
 
-def _adaptive_map(items, limit, stage, run_chunk):
-    """Map ordered chunks, halving and retrying only the failed CUDA OOM chunk."""
-    outputs = []
-    offset = 0
-    effective = max(1, int(limit))
-    mini_batch = 0
-    oom_fallback = False
-    largest_used = 0
-    while offset < len(items):
-        chunk = items[offset:offset + effective]
-        try:
-            mini_batch += 1
-            LOGGER.info("GPU %s mini-batch %d: %d images", stage, mini_batch, len(chunk))
-            values = run_chunk(chunk)
-            if len(values) != len(chunk):
-                raise RuntimeError(f"{stage} returned {len(values)} results for {len(chunk)} images")
-            outputs.extend(values)
-            largest_used = max(largest_used, len(chunk))
-            offset += len(chunk)
-        except torch.cuda.OutOfMemoryError:
-            if len(chunk) <= 1:
-                raise
-            oom_fallback = True
-            effective = max(1, len(chunk) // 2)
-            LOGGER.warning("CUDA OOM during %s; retrying the same images with batch size %d", stage, effective)
-            gc.collect()
-            torch.cuda.empty_cache()
-    return outputs, effective, largest_used, oom_fallback
+def _adaptive_map(items, limit, stage, run_chunk, user_batch_count=None):
+    """Run one accepted user batch; CUDA OOM never becomes hidden sub-batches."""
+    requested = len(items)
+    try:
+        LOGGER.info("GPU %s batch: %d images", stage, requested)
+        values = run_chunk(items)
+        if len(values) != requested:
+            raise RuntimeError(f"{stage} returned {len(values)} results for {requested} images")
+        return values, max(1, int(limit)), requested, False
+    except torch.cuda.OutOfMemoryError as exc:
+        peak = torch.cuda.max_memory_allocated() / 1048576 if torch.cuda.is_available() else 0.0
+        LOGGER.error("CUDA OOM: requested_images=%d stage_images=%d calculated_max=%d stage=%s peak_vram_mib=%.1f",
+                     user_batch_count or requested, requested, limit, stage, peak)
+        gc.collect()
+        torch.cuda.empty_cache()
+        raise RuntimeError("This batch could not fit into GPU memory during analysis. Try a smaller batch.") from exc
 
 
 def run_analysis_batch(
@@ -55,12 +43,17 @@ def run_analysis_batch(
     target_batch_size: int,
     on_state: Callable[[int, PipelineState], None] | None = None,
     on_batch_start: Callable[[list[int]], None] | None = None,
+    on_display_stage: Callable[[list[int], int], None] | None = None,
 ) -> dict:
     """Run IQA, ConvNeXt, and UNet++ as ordered tensor batches.
 
     NAFNet remains serial because it retains each input's full resolution and
     therefore has a different, image-dependent VRAM requirement.
     """
+    if len(items) > max(1, int(target_batch_size)):
+        raise ValueError(
+            f"Batch too large for this GPU. Maximum {target_batch_size} images; received {len(items)}."
+        )
     contexts = []
     results: list[dict | Exception | None] = [None] * len(items)
     effective_limit = max(1, int(target_batch_size))
@@ -114,7 +107,9 @@ def run_analysis_batch(
                 transition(context, PipelineState.IQA)
             return quality.predict_batch([context["iqa_image"] for context in chunk], registry.models["quality"])
 
-        quality_values, stage_limit, used, fell_back = _adaptive_map(valid, effective_limit, "IQA", quality_chunk)
+        quality_values, stage_limit, used, fell_back = _adaptive_map(
+            valid, effective_limit, "IQA", quality_chunk, len(items)
+        )
         effective_limit = min(effective_limit, stage_limit)
         largest_used = max(largest_used, used)
         oom_fallback |= fell_back
@@ -146,6 +141,9 @@ def run_analysis_batch(
             else:
                 accepted.append(context)
 
+        if accepted and on_display_stage is not None:
+            on_display_stage([context["index"] for context in accepted], 2)
+
         # Full-resolution NAFNet has image-dependent memory use and stays serial.
         for context in accepted:
             if context["result"]["quality"]["normalized_quality"] != "USABLE":
@@ -173,6 +171,9 @@ def run_analysis_batch(
             if "grading" not in registry.models:
                 raise RuntimeError("DR grading model is unavailable.")
 
+            if on_display_stage is not None:
+                on_display_stage([context["index"] for context in accepted], 3)
+
             def grade_chunk(chunk):
                 for context in chunk:
                     transition(context, PipelineState.GRADING)
@@ -181,7 +182,9 @@ def run_analysis_batch(
                     [context["destination"] / "grading" for context in chunk],
                 )
 
-            grade_values, stage_limit, used, fell_back = _adaptive_map(accepted, effective_limit, "grading", grade_chunk)
+            grade_values, stage_limit, used, fell_back = _adaptive_map(
+                accepted, effective_limit, "grading", grade_chunk, len(items)
+            )
             effective_limit = min(effective_limit, stage_limit)
             largest_used = max(largest_used, used)
             oom_fallback |= fell_back
@@ -202,7 +205,9 @@ def run_analysis_batch(
                     [context["destination"] / "lesions" for context in chunk], callbacks,
                 )
 
-            lesion_values, stage_limit, used, fell_back = _adaptive_map(accepted, effective_limit, "lesion", lesion_chunk)
+            lesion_values, stage_limit, used, fell_back = _adaptive_map(
+                accepted, effective_limit, "lesion", lesion_chunk, len(items)
+            )
             effective_limit = min(effective_limit, stage_limit)
             largest_used = max(largest_used, used)
             oom_fallback |= fell_back
@@ -212,6 +217,10 @@ def run_analysis_batch(
                 context["result"]["warnings"].append(
                     "Lesion region scores are mean pixel probabilities, not clinical confidence or severity."
                 )
+
+            if on_display_stage is not None:
+                on_display_stage([context["index"] for context in accepted], 4)
+            for context in accepted:
                 transition(context, PipelineState.PREPARING_RESULTS)
                 transition(context, PipelineState.COMPLETE)
                 context["result"]["state"] = PipelineState.COMPLETE.value

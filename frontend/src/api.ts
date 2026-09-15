@@ -102,7 +102,7 @@ export interface ReportExportResult {
   files: string[];
 }
 
-export type BatchPatientStatus = 'Queued' | 'Needs Review' | 'Invalid' | 'Skipped' | 'Processing' | 'Finalizing' | 'Completed' | 'Recapture Required' | 'Failed';
+export type BatchPatientStatus = 'Ready' | 'Needs Review' | 'Invalid' | 'Skipped' | 'Processing' | 'Finalizing' | 'Completed' | 'Recapture Required' | 'Failed';
 
 export interface BatchEyeCandidate {
   source_name: string;
@@ -114,6 +114,9 @@ export interface BatchEyeSnapshot {
   source_name: string;
   status: BatchPatientStatus;
   stage: AnalysisState;
+  display_stage_index: number;
+  display_stage_total: number;
+  display_stage_label: string;
   quality_route: 'GOOD' | 'USABLE' | 'RECAPTURE' | null;
   run_id: string | null;
   report_path: string | null;
@@ -144,10 +147,15 @@ export interface BatchSnapshot {
   invalid_items: Array<{ path: string; name: string; reason: string }>;
   logs: Array<{ time: string; patient_id: string; eye: 'OS' | 'OD' | null; message: string }>;
   currently_processing: { patient_id: string; eye: 'OS' | 'OD'; stage: AnalysisState } | null;
+  gpu_capacity: { available: boolean; name: string; vram_mb: number | null; max_batch_size: number | null };
+  stage_index: number;
+  stage_total: number;
+  stage_label: string;
+  progress_percent: number;
   counts: {
     total_patients: number; total_images: number; paired_patients: number; single_eye_patients: number;
     invalid_files: number; ready: number; needs_review: number; invalid: number;
-    completed: number; processing: number; queued: number; recapture_required: number; failed: number;
+    completed: number; processing: number; recapture_required: number; failed: number;
   };
   can_pause: boolean;
   can_resume: boolean;

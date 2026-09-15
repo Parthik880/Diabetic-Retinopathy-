@@ -49,7 +49,7 @@ class TensorBatchTests(unittest.TestCase):
             items.append({"original_path": path, "run_id": run.name, "eye": "OS"})
         return items
 
-    def run_mocked(self, count, target, malformed=None):
+    def run_mocked(self, count, target, malformed=None, stages=None):
         calls = {"iqa": [], "grading": [], "lesion": []}
 
         def iqa(images, _model):
@@ -77,11 +77,13 @@ class TensorBatchTests(unittest.TestCase):
             patch("inference.batch_pipeline.lesions.predict_batch", side_effect=lesion),
         ):
             outcome = run_analysis_batch(items=self.make_items(count, malformed), registry=Registry(),
-                                         runs_root=self.root, target_batch_size=target)
+                                         runs_root=self.root, target_batch_size=target,
+                                         on_batch_start=(lambda indices: stages.append((1, indices))) if stages is not None else None,
+                                         on_display_stage=(lambda indices, stage: stages.append((stage, indices))) if stages is not None else None)
         return outcome, calls
 
-    def test_b1_smaller_equal_and_larger_than_target(self):
-        for count, target, expected in ((1, 1, [1]), (2, 5, [2]), (3, 3, [3]), (5, 2, [2, 2, 1])):
+    def test_b1_smaller_and_equal_to_target_use_one_forward(self):
+        for count, target, expected in ((1, 1, [1]), (2, 5, [2]), (3, 3, [3])):
             with self.subTest(count=count, target=target):
                 outcome, calls = self.run_mocked(count, target)
                 self.assertEqual(calls["iqa"], expected)
@@ -89,21 +91,28 @@ class TensorBatchTests(unittest.TestCase):
                 self.assertEqual(calls["lesion"], expected)
                 self.assertTrue(all(result["state"] == "COMPLETE" for result in outcome["results"]))
 
-    def test_adaptive_oom_retries_same_order_and_caches_reduced_size(self):
+    def test_oom_stops_without_retrying_as_smaller_batches(self):
         seen = []
 
         def run(chunk):
             seen.append(list(chunk))
-            if len(chunk) > 2:
-                raise torch.cuda.OutOfMemoryError("forced")
-            return [f"result-{item}" for item in chunk]
+            raise torch.cuda.OutOfMemoryError("forced")
 
         with patch("inference.batch_pipeline.torch.cuda.empty_cache") as empty_cache:
-            results, effective, largest, fell_back = _adaptive_map(list(range(7)), 7, "test", run)
-        self.assertEqual(seen, [list(range(7)), [0, 1, 2], [0], [1], [2], [3], [4], [5], [6]])
-        self.assertEqual(results, [f"result-{index}" for index in range(7)])
-        self.assertEqual((effective, largest, fell_back), (1, 1, True))
-        self.assertEqual(empty_cache.call_count, 2)
+            with self.assertRaisesRegex(RuntimeError, "could not fit into GPU memory"):
+                _adaptive_map(list(range(7)), 7, "test", run)
+        self.assertEqual(seen, [list(range(7))])
+        empty_cache.assert_called_once()
+
+    def test_over_limit_is_rejected_before_any_forward(self):
+        with self.assertRaisesRegex(ValueError, "Maximum 2 images; received 3"):
+            self.run_mocked(3, 2)
+
+    def test_display_stages_are_emitted_in_backend_order(self):
+        stages = []
+        self.run_mocked(5, 5, stages=stages)
+        self.assertEqual([stage for stage, _indices in stages], [1, 2, 3, 4])
+        self.assertTrue(all(indices == list(range(5)) for _stage, indices in stages))
 
     def test_malformed_image_fails_only_that_item_and_mapping_is_exact(self):
         outcome, calls = self.run_mocked(3, 3, malformed=1)

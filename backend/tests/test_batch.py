@@ -263,10 +263,15 @@ class BatchManagerTests(unittest.TestCase):
         self.input.mkdir(); self.output.mkdir(); self.runs.mkdir()
         self.history = HistoryStore(self.root / "history.json")
         self.registry = FakeRegistry()
+        self.capacity_patch = patch("app.batch._gpu_capacity", return_value={
+            "available": True, "name": "Test GPU", "vram_mb": 12288.0, "max_batch_size": 115,
+        })
+        self.capacity_patch.start()
         self.manager = BatchAnalysisManager(registry=self.registry, history=self.history, runs_root=self.runs, logo_path=self.root / "logo.jpg")
 
     def tearDown(self):
         self.manager.shutdown()
+        self.capacity_patch.stop()
         self.temp.cleanup()
 
     def wait_terminal(self, batch_id: str) -> dict:
@@ -380,53 +385,72 @@ class BatchManagerTests(unittest.TestCase):
         for shape in shapes.values():
             self.assertIn(str(shape), joined_logs)
 
-    def test_full_batch_uses_cached_window_and_keeps_size_out_of_public_snapshots(self):
-        from concurrent.futures import wait as real_wait
+    def test_110_images_run_as_one_operation_without_queued_state(self):
+        sizes = []
+        for index in range(110):
+            make_image(self.input / f"RH{7000 + index}_Patient_OS.jpg")
 
-        # 44 images crosses the 41-image window and exercises its partial tail.
-        for index in range(22):
-            for eye in ("OS", "OD"):
-                make_image(self.input / f"RH{1000 + index}_Patient_{eye}.jpg")
+        class QualityModel:
+            def predict_batch(_self, images):
+                sizes.append(("iqa", len(images)))
+                return [{"quality": "Good", "confidence": 1.0, "probabilities": {}} for _ in images]
+
+        self.registry.models["quality"] = QualityModel()
         discovered = self.manager.discover(self.input)
-        calls, window_lengths, snapshots = [], [], [discovered]
 
-        def analyze(*, original_path, registry, run_id, runs_root, eye, on_state):
-            self.assertIs(registry, self.registry)
-            calls.append(eye)
-            on_state(PipelineState.LESION_INFERENCE)
-            snapshots.append(self.manager.get(discovered["batch_id"]))
-            result = completed_result(run_id, eye)
-            (original_path.parent / "response.json").write_text(json.dumps(result), encoding="utf-8")
-            return result
+        def grade(paths, _model, _outputs):
+            sizes.append(("grade", len(paths)))
+            return [{"predicted_grade": 0, "confidence": 1.0, "probabilities": [1, 0, 0, 0, 0]} for _ in paths]
 
-        def drain(futures):
-            window_lengths.append(len(futures))
-            return real_wait(futures)
+        def lesion(paths, _model, _outputs, _callbacks):
+            sizes.append(("lesion", len(paths)))
+            return [{"lesions": {}} for _ in paths]
 
-        with (
-            patch("app.batch.torch.cuda.is_available", return_value=True) as available,
-            patch("app.batch.torch.cuda.get_device_properties", return_value=SimpleNamespace(total_memory=1048576)) as properties,
-            patch("app.batch.run_analysis_pipeline", side_effect=analyze),
-            patch("app.batch.export_report_bundle", side_effect=fake_export),
-            patch("app.batch.wait", side_effect=drain),
-            self.assertLogs("uvicorn.error", level="INFO") as logs,
-        ):
-            snapshots.append(self.manager.start(discovered["batch_id"], self.output))
+        with patch("inference.batch_pipeline.grading.predict_batch", side_effect=grade), \
+             patch("inference.batch_pipeline.lesions.predict_batch", side_effect=lesion), \
+             patch("app.batch.export_report_bundle", side_effect=fake_export):
+            started = self.manager.start(discovered["batch_id"], self.output)
+            self.assertEqual({patient["status"] for patient in started["patients"]}, {"Processing"})
+            self.assertNotIn("Queued", json.dumps(started))
             final = self.wait_terminal(discovered["batch_id"])
-            snapshots.append(final)
-            available.assert_called_once()
-            properties.assert_called_once_with(torch.device("cuda"))
 
-        self.assertEqual(calls, ["OS", "OD"] * 22)
-        self.assertEqual(sorted(window_lengths), [2] * 22 + [22, 41])
-        self.assertEqual(final["counts"]["completed"], 22)
-        self.assertEqual(len(self.history.list()), 22)
-        self.assertTrue(all(patient["progress"] == "2/2" for patient in final["patients"]))
-        self.assertEqual(len(list(Path(final["output_root"]).rglob("report.pdf"))), 44)
-        self.assertIn("Calculated batch size: 41", " ".join(logs.output))
-        public_json = json.dumps(snapshots)
-        for private_text in ("batch_size", "vram_mb", "Calculated batch size", "Detected GPU VRAM"):
-            self.assertNotIn(private_text, public_json)
+        self.assertEqual(sizes, [("iqa", 110), ("grade", 110), ("lesion", 110)])
+        self.assertEqual(final["counts"]["completed"], 110)
+        self.assertEqual(final["stage_index"], 4)
+        self.assertEqual(final["progress_percent"], 100)
+
+    def test_capacity_accepts_115_and_rejects_116_and_150_before_inference(self):
+        for index in range(115):
+            make_image(self.input / f"RH{8000 + index}_Patient_OS.jpg")
+        accepted = self.manager.discover(self.input)
+        with patch.object(self.manager._scheduler, "submit") as submit:
+            snapshot = self.manager.start(accepted["batch_id"], self.output)
+        submit.assert_called_once()
+        self.assertEqual(snapshot["gpu_capacity"]["max_batch_size"], 115)
+        self.assertEqual({patient["status"] for patient in snapshot["patients"]}, {"Processing"})
+
+        for count in (116, 150):
+            folder = self.root / f"input-{count}"
+            folder.mkdir()
+            for index in range(count):
+                make_image(folder / f"RH{9000 + index}_Patient_OS.jpg")
+            rejected = self.manager.discover(folder)
+            with self.subTest(count=count), patch.object(self.manager._scheduler, "submit") as submit:
+                with self.assertRaisesRegex(ValueError, rf"supports up to 115.*contains {count}"):
+                    self.manager.start(rejected["batch_id"], self.output)
+                submit.assert_not_called()
+            self.assertEqual(self.manager.get(rejected["batch_id"])["state"], "Review")
+
+    def test_cuda_unavailable_has_no_invented_capacity(self):
+        make_image(self.input / "RH9999_Patient_OS.jpg")
+        with patch("app.batch._gpu_capacity", return_value={
+            "available": False, "name": "CPU", "vram_mb": None, "max_batch_size": None,
+        }):
+            discovered = self.manager.discover(self.input)
+        self.assertIsNone(discovered["gpu_capacity"]["vram_mb"])
+        self.assertIsNone(discovered["gpu_capacity"]["max_batch_size"])
+        with self.assertRaisesRegex(ValueError, "GPU batch analysis is unavailable"):
+            self.manager.start(discovered["batch_id"], self.output)
 
     def test_full_pipeline_cpu_and_cuda_preserve_progress_results_and_pause_resume(self):
         from threading import Event
@@ -470,7 +494,8 @@ class BatchManagerTests(unittest.TestCase):
                 release.set()
                 self.manager.resume(discovered["batch_id"])
             final = self.wait_terminal(discovered["batch_id"])
-            self.assertEqual(properties.call_count, 1 if self.registry.device.type == "cuda" else 0)
+            # Capacity is detected and cached during discovery, before this start-time patch.
+            self.assertEqual(properties.call_count, 0)
 
         self.assertEqual(devices, [str(self.registry.device)] * 2)
         self.assertEqual(final["state"], "Completed")
