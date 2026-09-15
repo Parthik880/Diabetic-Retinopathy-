@@ -33,6 +33,7 @@ hiddenimports = sorted(
         collect_submodules("torch.distributed")
         + collect_submodules("torchvision.models")
         + collect_submodules("torchvision.transforms")
+        + ["sqlalchemy.dialects.postgresql.psycopg", "psycopg_binary"]
     )
 )
 
@@ -40,7 +41,7 @@ hiddenimports = sorted(
 # collect_dynamic_libs preserves that complete native dependency set.
 binaries = collect_dynamic_libs("torch") + collect_dynamic_libs(
     "torchvision", search_patterns=["*.pyd", "*.dll"]
-)
+) + collect_dynamic_libs("psycopg_binary")
 
 # These are optional developer/multi-GPU alternatives and are not imported by
 # any bundled Torch DLL. Keeping the core NVRTC, cuSOLVER, cuPTI, cuDNN, cuBLAS,
@@ -60,20 +61,29 @@ binaries = [
 excluded_modules = [
     "albumentations",
     "black",
+    "fsspec",
+    "hf_xet",
+    "huggingface_hub",
     "IPython",
     "ipykernel",
     "jupyter",
+    "lxml",
     "notebook",
+    "onnx",
+    "onnxruntime",
+    "openpyxl",
     "pytest",
     "ruff",
     "seaborn",
     "sklearn",
     "tensorboard",
+    "tokenizers",
     "torch._dynamo",
     "torch._inductor",
     "torch._numpy",
     "torch.utils.benchmark",
     "torch.utils.tensorboard",
+    "transformers",
 ]
 
 

@@ -33,16 +33,27 @@ class GradCAM:
         self.gradients = grad_output[0].detach()
 
     def generate(self, image, class_index=None):
+        cams, logits, probabilities, classes = self.generate_batch(
+            image, None if class_index is None else [class_index]
+        )
+        return cams[0], logits, probabilities, classes[0]
+
+    def generate_batch(self, images, class_indices=None):
+        """Generate ordered per-image CAMs with one forward and one backward."""
         self.model.eval()
-        image = image.clone().requires_grad_(True)
+        images = images.clone().requires_grad_(True)
         self.model.zero_grad(set_to_none=True)
 
-        logits = self.model(image)
+        logits = self.model(images)
         probabilities = torch.softmax(logits, dim=1)
-        if class_index is None:
-            class_index = int(logits.argmax(dim=1).item())
+        if class_indices is None:
+            targets = logits.argmax(dim=1)
+        else:
+            targets = torch.as_tensor(class_indices, device=logits.device, dtype=torch.long)
+            if targets.shape != (images.shape[0],):
+                raise ValueError("One Grad-CAM class index is required per image")
 
-        logits[0, class_index].backward()
+        logits.gather(1, targets[:, None]).sum().backward()
         if self.activations is None or self.gradients is None:
             raise RuntimeError(
                 "Grad-CAM hooks did not capture activations and gradients"
@@ -53,18 +64,19 @@ class GradCAM:
         cam = torch.relu(cam)
         cam = F.interpolate(
             cam,
-            size=image.shape[-2:],
+            size=images.shape[-2:],
             mode="bilinear",
             align_corners=False,
-        )[0, 0]
-        cam = cam - cam.min()
-        cam = cam / (cam.max() + 1e-8)
+        )[:, 0]
+        minimum = cam.amin(dim=(1, 2), keepdim=True)
+        maximum = cam.amax(dim=(1, 2), keepdim=True)
+        cam = (cam - minimum) / (maximum - minimum + 1e-8)
 
         return (
             cam.detach().cpu(),
             logits.detach().cpu(),
             probabilities.detach().cpu(),
-            class_index,
+            [int(value) for value in targets.detach().cpu().tolist()],
         )
 
     def remove_hooks(self) -> None:

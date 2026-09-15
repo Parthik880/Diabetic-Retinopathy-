@@ -6,8 +6,6 @@ interface TopAppBarProps {
   patient?: PatientRecord;
   patients: PatientRecord[];
   onSelectPatient: (patient: PatientRecord) => void;
-  onOpenAddPatient: () => void;
-  onStartNewSession: () => void;
 }
 
 const tabs: Array<{ id: TabType; label: string; icon: string }> = [
@@ -19,7 +17,7 @@ const tabs: Array<{ id: TabType; label: string; icon: string }> = [
   { id: 'batch', label: 'Batch Analysis', icon: 'stacks' },
 ];
 
-export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelectPatient, onOpenAddPatient, onStartNewSession }: TopAppBarProps) {
+export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelectPatient }: TopAppBarProps) {
   return (
     <header className="no-print fixed inset-x-0 top-0 z-40 h-[72px] border-b border-outline-variant bg-surface-container-lowest/95 px-4 shadow-[0_6px_24px_rgba(20,32,24,0.08)] backdrop-blur-md md:px-6">
       <div className="mx-auto flex h-full max-w-[1600px] items-center justify-between gap-4">
@@ -31,7 +29,7 @@ export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelect
         >
           <img src="/logo.png.jpeg" alt="RetinaGram" className="h-11 w-11 rounded-[13px] object-cover shadow-[0_3px_12px_rgba(0,82,39,0.18)]" />
           <span className="hidden leading-none sm:block">
-            <span className="block font-headline text-[19px] font-extrabold tracking-[-0.025em] text-primary">RetinaGram</span>
+            <span className="block font-headline text-[19px] font-extrabold tracking-[-0.025em] text-primary">RetinaGram GPU</span>
             <span className="mt-1 block text-[11px] font-semibold tracking-[0.04em] text-on-surface-variant">AI Retinal Screening</span>
           </span>
         </button>
@@ -42,6 +40,7 @@ export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelect
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
+              aria-label={tab.label}
               aria-current={activeTab === tab.id ? 'page' : undefined}
               className={`flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                 activeTab === tab.id ? 'bg-primary text-on-primary shadow-[0_2px_8px_rgba(0,82,39,0.22)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
@@ -69,21 +68,14 @@ export function TopAppBar({ activeTab, setActiveTab, patient, patients, onSelect
               {patients.map((candidate) => <option key={candidate.id} value={candidate.id}>#{candidate.patientIdNumber} - {candidate.name}</option>)}
             </select>
           </label>}
-          {patient && <button
-            type="button"
-            onClick={onStartNewSession}
-            className="flex min-h-10 items-center gap-1.5 rounded-lg border border-primary bg-surface-container-lowest px-3 text-xs font-bold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">restart_alt</span>
-            <span className="hidden xl:inline">New session</span>
-          </button>}
           <button
             type="button"
-            onClick={onOpenAddPatient}
+            onClick={() => setActiveTab('cloud')}
+            aria-current={activeTab === 'cloud' ? 'page' : undefined}
             className="flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-on-primary shadow-[0_3px_12px_rgba(0,82,39,0.2)] transition-colors hover:bg-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">person_add</span>
-            <span className="hidden xl:inline">New patient</span>
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">cloud_sync</span>
+            <span>Cloud Sync</span>
           </button>
         </div>
       </div>

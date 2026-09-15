@@ -1,4 +1,5 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { contactUrl } = require('./contact-actions.cjs');
 const { spawn } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
 const net = require('node:net');
@@ -7,6 +8,7 @@ const fs = require('node:fs');
 
 let backend;
 let stopping = false;
+let backendOrigin;
 const devRoot = path.resolve(__dirname, '..');
 const instance = randomUUID();
 app.setName('RetinaGram GPU');
@@ -85,6 +87,7 @@ async function start() {
   const usePackagedBackend = app.isPackaged || fs.existsSync(packagedBackend);
   const port = await availablePort();
   const origin = `http://127.0.0.1:${port}`;
+  backendOrigin = origin;
   const log = fs.openSync(path.join(logs, 'backend.log'), 'a');
   const backendCommand = usePackagedBackend ? packagedBackend : python;
   const backendCwd = usePackagedBackend ? backendRoot : devRoot;
@@ -145,6 +148,30 @@ async function start() {
     app.quit();
   }
 }
+
+function trustedSender(event) {
+  if (!backendOrigin || event.senderFrame !== event.sender.mainFrame || new URL(event.senderFrame.url).origin !== backendOrigin) {
+    throw new Error('Untrusted application frame.');
+  }
+}
+
+ipcMain.handle('retinagram:contact-patient', async (event, action) => {
+  trustedSender(event);
+  const url = contactUrl(action);
+  try {
+    await shell.openExternal(url);
+    return { opened: true };
+  } catch {
+    return { opened: false };
+  }
+});
+
+ipcMain.handle('retinagram:open-data-folder', async event => {
+  trustedSender(event);
+  const folder = path.join(app.getPath('userData'), 'runtime');
+  fs.mkdirSync(folder, { recursive: true });
+  return { opened: !(await shell.openPath(folder)) };
+});
 
 ipcMain.handle('retinagram:choose-report-folder', async () => {
   if (process.env.RETINA_SMOKE === '1') {

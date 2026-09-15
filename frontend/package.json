@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "test:workflow": "tsx tests/analysisWorkflow.test.ts",
     "test:history": "tsx tests/historyGrouping.test.ts",
+    "test:batch-ui": "tsx tests/batchProgress.test.tsx",
     "preview": "vite preview --host 127.0.0.1",
     "legacy:dev": "tsx server.ts"
   },

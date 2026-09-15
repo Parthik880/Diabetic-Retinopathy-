@@ -1,5 +1,5 @@
 import { analyzeImage, resetPatient, resetScan, projectPatient, PIPELINE_STATE_LABELS, persistHistory, saveReport } from './api';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TabType, PatientRecord, HistoryRecord } from './types';
 import { SAMPLE_PATIENTS } from './data/samplePatients';
 import { TopAppBar } from './components/TopAppBar';
@@ -16,6 +16,8 @@ import { BatchAnalysisScreen } from './components/BatchAnalysisScreen';
 import { eyesRequiringAnalysis } from './analysisWorkflow';
 import { createNewSession, sessionHasData } from './sessionWorkflow';
 import { NewSessionDialog } from './components/NewSessionDialog';
+import { CloudSyncScreen } from './components/CloudSyncScreen';
+import { dataRequest, type PatientDetails } from './dataApi';
 
 export interface AnalysisProgress {
   currentEye: 'OS' | 'OD';
@@ -39,6 +41,7 @@ function patientFromHistory(record: HistoryRecord, eye: 'OS' | 'OD'): PatientRec
     id: record.patient.id, sessionId: record.session_id, sessionStartedAt: record.scan_datetime,
     patientIdNumber: record.patient_id, name: record.patient_name,
     age: record.patient.age, gender: record.patient.gender, dob: record.patient.dob,
+    phone: record.patient.phone || '', email: record.patient.email || '',
     diabeticHistoryYears: record.patient.diabeticHistoryYears, hba1c: record.patient.hba1c,
     bloodPressure: record.patient.bloodPressure, studyDate: record.scan_datetime,
     leftEye: makeScan('OS'), rightEye: makeScan('OD'), activeEye: eye,
@@ -46,6 +49,17 @@ function patientFromHistory(record: HistoryRecord, eye: 'OS' | 'OD'): PatientRec
     criticalFinding: { title: 'Model output only', description: '', urgency: 'Routine', actionNeeded: 'Clinician review' },
     clinicalNotes: '', isConfirmed: false, isFlagged: false,
   });
+}
+
+function patientFromDetails(details: PatientDetails): PatientRecord {
+  const emptyEye = { available: false, completed: false, state: null, result_data: null, original_path: null, restored_path: null, overlay_path: null, report_path: null, captured_at: null };
+  return resetPatient(patientFromHistory({
+    session_id: crypto.randomUUID(), patient_id: details.patientIdNumber, patient_name: details.name,
+    patient: { id: details.id || details.patientIdNumber, age: details.age || 0, gender: details.gender || 'Other', dob: details.dob || '',
+      diabeticHistoryYears: details.diabeticHistoryYears || 0, hba1c: details.hba1c || '', bloodPressure: details.bloodPressure || '',
+      phone: details.phone || '', email: details.email || '' },
+    scan_datetime: new Date().toISOString(), updated_at: '', left_eye: emptyEye, right_eye: emptyEye,
+  }, 'OS'));
 }
 
 export default function App() {
@@ -68,6 +82,18 @@ export default function App() {
   const [isStartingSession, setIsStartingSession] = useState(false);
   const [newSessionError, setNewSessionError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [patientLoadError, setPatientLoadError] = useState('');
+
+  const reloadPatients = async () => {
+    const result = await dataRequest<{ patients: PatientDetails[] }>('/api/patients');
+    const loaded = result.patients.map(patientFromDetails);
+    replacePatients(loaded);
+    setCurrentPatientId(loaded[0]?.id || '');
+    setPatientLoadError('');
+  };
+  useEffect(() => {
+    if (!smokeMode) void reloadPatients().catch(error => setPatientLoadError(error.message));
+  }, []);
 
   const currentPatientSource = patients.find((p) => p.id === currentPatientId) || patients[0];
   const currentPatient = currentPatientSource ? projectPatient(currentPatientSource) : undefined;
@@ -92,7 +118,9 @@ export default function App() {
     mutatePatient(updated.id, () => updated);
   };
 
-  const handleAddPatient = (inputPatient: PatientRecord) => {
+  const handleAddPatient = async (inputPatient: PatientRecord) => {
+    const { id, patientIdNumber, name, age, gender, phone, email, dob, diabeticHistoryYears, hba1c, bloodPressure } = inputPatient;
+    await dataRequest('/api/patients', 'POST', { id, patientIdNumber, name, age, gender, phone, email, dob, diabeticHistoryYears, hba1c, bloodPressure });
     const newPatient = resetPatient(inputPatient);
     replacePatients([newPatient, ...patientsRef.current]);
     setCurrentPatientId(newPatient.id);
@@ -231,8 +259,6 @@ export default function App() {
         patient={currentPatient}
         patients={patients}
         onSelectPatient={(p) => setCurrentPatientId(p.id)}
-        onOpenAddPatient={() => setIsAddPatientOpen(true)}
-        onStartNewSession={handleNewSessionRequest}
       />
 
       {/* Floating Notification Toast */}
@@ -245,7 +271,8 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 pt-[72px]">
-        {!currentPatient && activeTab !== 'history' && activeTab !== 'batch' && (
+        {patientLoadError && <div role="alert" className="mx-auto mt-4 max-w-5xl rounded-lg bg-error-container p-4 text-sm text-error">{patientLoadError}<button className="ml-3 font-bold underline" onClick={() => void reloadPatients().catch(error => setPatientLoadError(error.message))}>Retry patient loading</button></div>}
+        {!currentPatient && activeTab === 'capture' && (
           <section className="mx-auto mt-16 max-w-2xl px-6 text-center">
             <span className="material-symbols-outlined text-6xl text-primary" aria-hidden="true">person_add</span>
             <h1 className="mt-4 font-headline text-3xl font-extrabold tracking-[-0.03em]">Begin a retinal screening session</h1>
@@ -262,6 +289,7 @@ export default function App() {
             onNavigate={setActiveTab}
             onOpenUploadModal={(eye) => setUploadModalState({ isOpen: true, eye })}
             onOpenAddPatient={() => setIsAddPatientOpen(true)}
+            onStartNewSession={handleNewSessionRequest}
           />
         )}
 
@@ -294,6 +322,11 @@ export default function App() {
         )}
         {activeTab === 'history' && <HistoryScreen onOpenRecord={openHistoryRecord} onDownloadRecord={downloadHistoryRecord} />}
         {activeTab === 'batch' && <BatchAnalysisScreen />}
+        {activeTab === 'cloud' && <CloudSyncScreen onBack={() => setActiveTab('capture')} onDataCleared={async categories => {
+          if (categories.includes('history')) await reloadPatients();
+          else if (categories.includes('images')) replacePatients(patientsRef.current.map(patient => createNewSession(patient)));
+          else if (categories.includes('artifacts')) replacePatients(patientsRef.current.map(resetPatient));
+        }} />}
       </main>
 
       {/* Mobile Fixed Bottom Navigation */}

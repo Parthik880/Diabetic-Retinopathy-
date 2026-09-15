@@ -3,7 +3,7 @@ import { PatientRecord, AnomalyItem, EyeScanData } from '../types';
 
 interface AddPatientModalProps {
   onClose: () => void;
-  onAddPatient: (patient: PatientRecord) => void;
+  onAddPatient: (patient: PatientRecord) => Promise<void>;
 }
 
 const DEFAULT_LESIONS: AnomalyItem[] = [
@@ -83,6 +83,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
   
   const [formData, setFormData] = useState({
     name: '',
+    phone: '',
+    email: '',
     patientIdNumber: generatedId,
     age: '54',
     gender: 'Female' as 'Female' | 'Male' | 'Other',
@@ -96,6 +98,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
 
   const [customOsUrl, setCustomOsUrl] = useState<string>('');
   const [customOdUrl, setCustomOdUrl] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleQuickFill = () => {
     const randomPatients = [
@@ -129,9 +133,9 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || saving) return;
 
     const timestamp = new Date();
     const formattedDate = `${timestamp.getFullYear()}-${String(timestamp.getMonth() + 1).padStart(2, '0')}-${String(
@@ -223,6 +227,8 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
       id: `pt-${Date.now()}`,
       patientIdNumber: formData.patientIdNumber,
       name: formData.name.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim(),
       age: parseInt(formData.age, 10) || 50,
       gender: formData.gender,
       dob: formData.dob,
@@ -255,8 +261,10 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
       isFlagged: false
     };
 
-    onAddPatient(newPatient);
-    onClose();
+    setSaving(true); setSaveError('');
+    try { await onAddPatient(newPatient); onClose(); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : 'Patient could not be saved.'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -290,6 +298,7 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
 
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-5 max-h-[78vh] overflow-y-auto">
+          {saveError && <p role="alert" className="rounded-lg bg-error-container p-3 text-sm text-error">{saveError}</p>}
           {/* Quick Preload Toolbar */}
           <div className="flex items-center justify-between p-3 bg-surface-container-low rounded-xl border border-outline-variant">
             <span className="text-xs font-semibold text-on-surface-variant flex items-center gap-1.5">
@@ -375,6 +384,11 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
                 />
               </div>
             </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-bold">Phone <span className="font-normal text-on-surface-variant">(optional)</span><input type="tel" autoComplete="tel" maxLength={40} value={formData.phone} onChange={event => setFormData({ ...formData, phone: event.target.value })} className="mt-1 w-full rounded-lg border border-outline bg-surface-container-low px-3 py-2 focus-visible:ring-2 focus-visible:ring-primary" /></label>
+            <label className="text-sm font-bold">Email <span className="font-normal text-on-surface-variant">(optional)</span><input type="email" autoComplete="email" maxLength={254} value={formData.email} onChange={event => setFormData({ ...formData, email: event.target.value })} className="mt-1 w-full rounded-lg border border-outline bg-surface-container-low px-3 py-2 focus-visible:ring-2 focus-visible:ring-primary" /></label>
           </div>
 
           {/* Section 2: Clinical Biomarkers */}
@@ -545,11 +559,11 @@ export function AddPatientModal({ onClose, onAddPatient }: AddPatientModalProps)
             </button>
             <button
               type="submit"
-              disabled={!formData.name.trim()}
+              disabled={!formData.name.trim() || saving}
               className="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs md:text-sm rounded-lg hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-base">check</span>
-              Register & Begin Screening
+              {saving ? 'Saving patient…' : 'Register & Begin Screening'}
             </button>
           </div>
         </form>

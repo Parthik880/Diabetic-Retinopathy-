@@ -424,6 +424,7 @@ export async function persistHistory(patient: PatientRecord): Promise<HistoryRec
         id: patient.id, age: patient.age, gender: patient.gender, dob: patient.dob,
         diabeticHistoryYears: patient.diabeticHistoryYears, hba1c: patient.hba1c,
         bloodPressure: patient.bloodPressure,
+        phone: patient.phone || '', email: patient.email || '',
       },
       scan_datetime: patient.sessionStartedAt || [patient.leftEye.capturedAt, patient.rightEye.capturedAt]
         .filter(Boolean).sort().at(-1) || new Date().toISOString(),

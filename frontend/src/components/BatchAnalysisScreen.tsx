@@ -1,27 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { controlBatch, discoverBatch, getBatch, startBatch, type BatchEyeCandidate, type BatchEyeSnapshot, type BatchPatientSnapshot, type BatchSnapshot } from '../api';
-import type { AnalysisState } from '../types';
+import { useEffect, useState } from 'react';
+import { controlBatch, discoverBatch, getBatch, startBatch, type BatchEyeCandidate, type BatchPatientSnapshot, type BatchSnapshot } from '../api';
+import { PatientProgressBar } from '../batchProgress';
 
 const RUNNING_STATES = new Set(['Processing', 'Pausing', 'Paused', 'Cancelling']);
-
-const STAGES: Array<{ state: AnalysisState | 'IMAGE_LOADED' | 'REPORT'; label: string }> = [
-  { state: 'IMAGE_LOADED', label: 'Image loaded' },
-  { state: 'IQA', label: 'Image quality assessment' },
-  { state: 'RESTORING', label: 'Restoration' },
-  { state: 'GRADING', label: 'DR grading' },
-  { state: 'LESION_INFERENCE', label: 'GPU lesion inference' },
-  { state: 'LESION_MASK_PROCESSING', label: 'Mask processing' },
-  { state: 'LESION_REGION_EXTRACTION', label: 'Region extraction' },
-  { state: 'LESION_RESULTS_SAVING', label: 'Save lesion results' },
-  { state: 'REPORT', label: 'Report generation' },
-];
-
-const ORDER: Partial<Record<AnalysisState, number>> = {
-  WAITING: 0, IQA: 1, IQA_GOOD: 2, IQA_USABLE: 2, IQA_REJECTED: 2,
-  RESTORING: 2, RESTORATION_COMPLETE: 3, GRADING: 3, LESION_ANALYSIS: 4,
-  LESION_INFERENCE: 4, LESION_MASK_PROCESSING: 5, LESION_REGION_EXTRACTION: 6,
-  LESION_RESULTS_SAVING: 7, PREPARING_RESULTS: 8, COMPLETE: 8, RECAPTURE_REQUIRED: 8, FAILED: 8,
-};
 
 function statusStyle(status: string) {
   if (status === 'Completed' || status === 'READY' || status === 'Ready after selection') return 'bg-primary/10 text-primary';
@@ -37,37 +18,6 @@ function Metric({ label, value, tone = 'default' }: { label: string; value: numb
     <div className={`font-headline text-2xl font-extrabold tabular-nums ${color}`}>{value}</div>
     <div className="mt-0.5 text-xs font-bold text-on-surface-variant">{label}</div>
   </div>;
-}
-
-function PipelineStage({ label, state }: { label: string; state: 'done' | 'active' | 'pending' | 'skipped' | 'failed' }) {
-  const icon = state === 'done' ? 'check_circle' : state === 'active' ? 'radio_button_checked' : state === 'failed' ? 'error' : state === 'skipped' ? 'remove_circle_outline' : 'radio_button_unchecked';
-  const color = state === 'done' ? 'text-primary' : state === 'active' ? 'text-secondary' : state === 'failed' ? 'text-error' : 'text-on-surface-variant';
-  return <li className={`flex items-center gap-2.5 text-sm font-bold ${color}`}>
-    <span className={`material-symbols-outlined text-[19px] ${state === 'active' ? 'fill-1' : ''}`} aria-hidden="true">{icon}</span>
-    <span>{label}{state === 'skipped' ? ' · Not required' : ''}</span>
-  </li>;
-}
-
-function currentEye(snapshot: BatchSnapshot): BatchEyeSnapshot | null {
-  const current = snapshot.currently_processing;
-  if (!current) return null;
-  const patient = snapshot.patients.find(item => item.patient_id === current.patient_id);
-  return patient?.eyes[current.eye] || null;
-}
-
-function pipelineState(eye: BatchEyeSnapshot | null, stage: typeof STAGES[number]['state']): 'done' | 'active' | 'pending' | 'skipped' | 'failed' {
-  if (!eye) return 'pending';
-  if (eye.stage === 'FAILED') return stage === 'REPORT' ? 'pending' : 'failed';
-  const rank = ORDER[eye.stage] ?? 0;
-  if (stage === 'IMAGE_LOADED') return 'done';
-  if (stage === 'RESTORING' && eye.quality_route === 'GOOD') return 'skipped';
-  if (stage === 'REPORT') return eye.status === 'Completed' ? 'done' : eye.status === 'Finalizing' ? 'active' : rank >= 8 ? 'active' : 'pending';
-  const targets: Partial<Record<typeof stage, number>> = {
-    IQA: 1, RESTORING: 2, GRADING: 3, LESION_INFERENCE: 4,
-    LESION_MASK_PROCESSING: 5, LESION_REGION_EXTRACTION: 6, LESION_RESULTS_SAVING: 7,
-  };
-  const target = targets[stage] ?? 8;
-  return rank > target ? 'done' : rank === target ? 'active' : 'pending';
 }
 
 type BatchSelections = Record<string, Partial<Record<'OS' | 'OD', string>>>;
@@ -122,7 +72,6 @@ export function BatchAnalysisScreen() {
     return () => { stopped = true; window.clearInterval(poll); };
   }, [snapshot?.batch_id, snapshot?.state]);
 
-  const activeEye = useMemo(() => snapshot ? currentEye(snapshot) : null, [snapshot]);
   const chooseInput = async () => {
     if (!window.retinaDesktop) return setError('Folder selection is available in the RetinaGram desktop app.');
     const path = await window.retinaDesktop.chooseBatchInputFolder();
@@ -227,30 +176,11 @@ export function BatchAnalysisScreen() {
         </div>
       </section>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <section className="rounded-2xl border border-outline-variant bg-surface-container-lowest p-5" aria-labelledby="currently-processing-title">
-          <h2 id="currently-processing-title" className="font-headline text-xl font-extrabold">Currently Processing</h2>
-          {snapshot.currently_processing ? <>
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-surface-container-low px-4 py-3">
-              <div><div className="text-sm font-extrabold">Patient {snapshot.currently_processing.patient_id}</div><div className="mt-0.5 text-xs font-semibold text-on-surface-variant">{snapshot.currently_processing.eye === 'OS' ? 'Left Eye (OS)' : 'Right Eye (OD)'}</div></div>
-              <span className="material-symbols-outlined text-2xl text-primary" aria-hidden="true">neurology</span>
-            </div>
-            <ol className="mt-4 space-y-2.5">{STAGES.map(stage => <PipelineStage key={stage.state} label={stage.label} state={pipelineState(activeEye, stage.state)} />)}</ol>
-          </> : <div className="mt-4 rounded-xl bg-surface-container-low px-4 py-6 text-sm font-semibold text-on-surface-variant">{snapshot.state === 'Completed' ? 'All scheduled patients are complete.' : snapshot.state === 'Paused' ? 'Paused at a safe scheduling boundary.' : snapshot.state === 'Cancelled' ? 'No further patients will be scheduled.' : 'Waiting for the next eye.'}</div>}
-        </section>
-
-        <section className="rounded-2xl border border-outline-variant bg-inverse-surface p-5 text-inverse-on-surface" aria-labelledby="live-log-title">
-          <div className="flex items-center justify-between"><h2 id="live-log-title" className="font-headline text-xl font-extrabold">Live Log</h2><span className="text-xs font-bold text-primary-fixed-dim">Patient IDs only</span></div>
-          <div className="mt-4 h-64 overflow-y-auto rounded-xl bg-black/20 p-3 font-mono text-xs leading-6" role="log" aria-live="polite">
-            {snapshot.logs.length ? [...snapshot.logs].reverse().map((log, index) => <div key={`${log.time}-${index}`} className="border-b border-white/5 py-0.5"><span className="text-primary-fixed-dim">{log.time}</span> <span className="text-white">[{log.patient_id}]{log.eye ? `[${log.eye}]` : ''}</span> <span className="text-inverse-on-surface/80">{log.message}</span></div>) : <div className="text-inverse-on-surface/60">No batch events yet.</div>}
-          </div>
-        </section>
-      </div>
     </>}
 
     {snapshot && (showPatients || snapshot.state !== 'Review') && <section className="mt-6 overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest" aria-labelledby="detected-patients-title">
       <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4"><div><h2 id="detected-patients-title" className="font-headline text-xl font-extrabold">Detected Patients</h2><p className="mt-1 text-xs font-semibold text-on-surface-variant">Independent eye status is preserved for OS-only, OD-only, and paired patients.</p></div><span className="text-sm font-extrabold tabular-nums text-primary">{snapshot.patients.length}</span></div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-surface-container-low text-xs uppercase tracking-[0.04em] text-on-surface-variant"><tr><th className="px-5 py-3">#</th><th className="px-5 py-3">Patient ID</th><th className="px-5 py-3">Name</th><th className="px-5 py-3">OS</th><th className="px-5 py-3">OD</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Progress</th></tr></thead>
+      <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-surface-container-low text-xs uppercase tracking-[0.04em] text-on-surface-variant"><tr><th className="px-5 py-3">#</th><th className="px-5 py-3">Patient ID</th><th className="px-5 py-3">Name</th><th className="px-5 py-3">OS</th><th className="px-5 py-3">OD</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Progress bar</th><th className="px-5 py-3 text-right">Progress</th></tr></thead>
         <tbody className="divide-y divide-outline-variant">{snapshot.patients.map(patient => {
           const resolved = isReviewResolved(patient, selections);
           const displayStatus = snapshot.state === 'Review' ? resolved ? 'Ready after selection' : patient.discovery_status : patient.status;
@@ -261,6 +191,7 @@ export function BatchAnalysisScreen() {
             <td className="px-5 py-4"><EyeCandidateCell patientId={patient.patient_id} eye="OS" candidates={patient.eye_candidates.OS} selected={selections[patient.patient_id]?.OS} disabled={snapshot.state !== 'Review'} onSelect={path => setSelections(value => ({ ...value, [patient.patient_id]: { ...value[patient.patient_id], OS: path } }))} /></td>
             <td className="px-5 py-4"><EyeCandidateCell patientId={patient.patient_id} eye="OD" candidates={patient.eye_candidates.OD} selected={selections[patient.patient_id]?.OD} disabled={snapshot.state !== 'Review'} onSelect={path => setSelections(value => ({ ...value, [patient.patient_id]: { ...value[patient.patient_id], OD: path } }))} /></td>
             <td className="px-5 py-4"><span className={`inline-flex rounded-lg px-2.5 py-1.5 text-xs font-extrabold ${statusStyle(displayStatus)}`}>{displayStatus.replace('_', ' ')}</span>{patient.issues.length > 0 && <ul className="mt-2 max-w-[220px] space-y-1 text-xs font-semibold text-tertiary">{patient.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}</td>
+            <td className="px-5 py-4"><PatientProgressBar status={displayStatus} value={patient.progress} /></td>
             <td className="px-5 py-4 text-right font-extrabold tabular-nums">{patient.progress}</td>
           </tr>;
         })}</tbody>

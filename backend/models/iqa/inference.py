@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+import logging
 
 import torch
 from PIL import Image
@@ -68,18 +69,27 @@ class EfficientNetIQAService:
         ])
 
     @torch.inference_mode()
-    def predict(self, image: Image.Image) -> dict:
-        images = self.transform(image.convert("RGB")).unsqueeze(0).to(self.device)
-        features = self.feature_extractor(images).flatten(start_dim=1)
+    def predict_batch(self, images: list[Image.Image]) -> list[dict]:
+        """Predict one ordered result per image with a single model forward."""
+        if not images:
+            return []
+        batch = torch.stack([
+            self.transform(image.convert("RGB")) for image in images
+        ]).to(self.device)
+        logging.getLogger("uvicorn.error").info("IQA tensor shape: %s", list(batch.shape))
+        features = self.feature_extractor(batch).flatten(start_dim=1)
         logits = self.classifier(features)
         probabilities = torch.softmax(logits / self.temperature, dim=1)
         if not torch.isfinite(probabilities).all():
             raise RuntimeError("IQA returned non-finite probabilities")
-        values = probabilities[0].cpu().tolist()
-        class_id = int(probabilities.argmax(dim=1).item())
-        return {
-            "class_id": class_id,
+        values = probabilities.detach().cpu().tolist()
+        class_ids = probabilities.argmax(dim=1).detach().cpu().tolist()
+        return [{
+            "class_id": int(class_id),
             "quality": IQA_CLASS_NAMES[class_id],
-            "confidence": values[class_id],
-            "probabilities": dict(zip(IQA_CLASS_NAMES, values)),
-        }
+            "confidence": row[class_id],
+            "probabilities": dict(zip(IQA_CLASS_NAMES, row)),
+        } for row, class_id in zip(values, class_ids, strict=True)]
+
+    def predict(self, image: Image.Image) -> dict:
+        return self.predict_batch([image])[0]

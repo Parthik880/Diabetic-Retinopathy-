@@ -7,3 +7,5 @@ scipy==1.18.1
 pandas==3.0.5
 matplotlib==3.11.1
 reportlab==5.0.1
+SQLAlchemy>=2.0,<2.1
+psycopg[binary]>=3.2,<4

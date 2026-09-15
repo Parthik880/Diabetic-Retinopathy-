@@ -126,6 +126,7 @@ def predict_lesions(
     save_gradcam_overlay_images: bool = True,
     generate_localization_images: bool = True,
     defer_region_extraction: bool = False,
+    precomputed_original_probabilities: np.ndarray | None = None,
 ) -> dict:
     """Predict lesions and return JSON-compatible estimated localization data.
 
@@ -162,47 +163,59 @@ def predict_lesions(
     except StopIteration as exc:
         raise RuntimeError("Lesion model has no parameters") from exc
     model.eval()
-    if stage_callback is not None:
-        stage_callback("LESION_INFERENCE")
-    with _timed(timing, "h2d_transfer_ms", model_device):
-        model_input = image_tensor.to(model_device)
-
     timing["model_device"] = str(model_device)
-    timing["input_device"] = str(model_input.device)
     timing["grad_enabled_before_forward"] = bool(torch.is_grad_enabled())
-    if model_device.type == "cuda":
-        timing["memory_allocated_before_mib"] = torch.cuda.memory_allocated(model_device) / 1048576
-        timing["memory_reserved_before_mib"] = torch.cuda.memory_reserved(model_device) / 1048576
-
-    gradcam = SegmentationGradCAM(model) if generate_gradcam else None
-    try:
-        forward_context = (
-            torch.enable_grad() if generate_gradcam else torch.inference_mode()
-        )
-        with forward_context:
-            with _timed(timing, "model_forward_ms", model_device):
-                logits = model(model_input)
-            timing["grad_enabled_inside_forward"] = bool(torch.is_grad_enabled())
-            timing["model_forward_count"] = int(timing.get("model_forward_count", 0)) + 1
-            with _timed(timing, "sigmoid_ms", model_device):
-                probabilities = torch.sigmoid(logits)
-
-        expected_shape = (1, len(LESION_CLASSES), IMAGE_SIZE, IMAGE_SIZE)
-        if tuple(logits.shape) != expected_shape:
+    expected_shape = (1, len(LESION_CLASSES), IMAGE_SIZE, IMAGE_SIZE)
+    logits = None
+    gradcam = None
+    if precomputed_original_probabilities is None:
+        if stage_callback is not None:
+            stage_callback("LESION_INFERENCE")
+        with _timed(timing, "h2d_transfer_ms", model_device):
+            model_input = image_tensor.to(model_device)
+        timing["input_device"] = str(model_input.device)
+        if model_device.type == "cuda":
+            timing["memory_allocated_before_mib"] = torch.cuda.memory_allocated(model_device) / 1048576
+            timing["memory_reserved_before_mib"] = torch.cuda.memory_reserved(model_device) / 1048576
+        gradcam = SegmentationGradCAM(model) if generate_gradcam else None
+        try:
+            forward_context = torch.enable_grad() if generate_gradcam else torch.inference_mode()
+            with forward_context:
+                with _timed(timing, "model_forward_ms", model_device):
+                    logits = model(model_input)
+                timing["grad_enabled_inside_forward"] = bool(torch.is_grad_enabled())
+                timing["model_forward_count"] = int(timing.get("model_forward_count", 0)) + 1
+                with _timed(timing, "sigmoid_ms", model_device):
+                    probabilities = torch.sigmoid(logits)
+            if tuple(logits.shape) != expected_shape:
+                raise RuntimeError(
+                    f"Expected raw lesion logits with shape {expected_shape}, received {tuple(logits.shape)}"
+                )
+            with _timed(timing, "mask_resize_to_original_ms", model_device):
+                resized_probabilities = F.interpolate(
+                    probabilities, size=(image_height, image_width), mode="bilinear", align_corners=False,
+                )[0]
+            with _timed(timing, "d2h_transfer_ms", model_device):
+                original_probabilities = resized_probabilities.detach().float().cpu().numpy()
+        except Exception:
+            if gradcam is not None:
+                gradcam.close()
+            raise
+    else:
+        if generate_gradcam:
+            raise ValueError("Batched lesion probabilities cannot be reused for Grad-CAM generation.")
+        original_probabilities = np.asarray(precomputed_original_probabilities, dtype=np.float32)
+        if original_probabilities.shape != (len(LESION_CLASSES), image_height, image_width):
             raise RuntimeError(
-                f"Expected raw lesion logits with shape {expected_shape}, "
-                f"received {tuple(logits.shape)}"
+                "Precomputed lesion probabilities do not match the image dimensions: "
+                f"{original_probabilities.shape}"
             )
-        with _timed(timing, "mask_resize_to_original_ms", model_device):
-            resized_probabilities = F.interpolate(
-                probabilities,
-                size=(image_height, image_width),
-                mode="bilinear",
-                align_corners=False,
-            )[0]
-        with _timed(timing, "d2h_transfer_ms", model_device):
-            original_probabilities = resized_probabilities.detach().float().cpu().numpy()
+        model_input = image_tensor
+        timing["input_device"] = str(model_device)
+        timing["grad_enabled_inside_forward"] = False
+        timing["model_forward_count"] = 1
 
+    try:
         lesion_metadata: dict[str, dict] = {}
         filtered_masks: dict[str, np.ndarray] = {}
         if stage_callback is not None:
@@ -285,7 +298,7 @@ def predict_lesions(
         gradcam_overlays: dict[str, np.ndarray | None] = {
             lesion: None for lesion in LESION_CLASSES
         }
-        if gradcam is not None:
+        if gradcam is not None and logits is not None:
             for lesion, channel in LESION_CLASSES.items():
                 with _timed(timing, "gradcam_generation_ms", model_device):
                     cam = gradcam.generate(logits, channel, filtered_masks[lesion])
@@ -339,8 +352,8 @@ def predict_lesions(
         "image": str(path),
         "image_width": int(image_width),
         "image_height": int(image_height),
-        "model_input_shape": [int(value) for value in model_input.shape],
-        "logits_shape": [int(value) for value in logits.shape],
+        "model_input_shape": [1, 3, IMAGE_SIZE, IMAGE_SIZE],
+        "logits_shape": list(expected_shape),
         "probability_maps_shape": [
             int(len(LESION_CLASSES)),
             int(image_height),

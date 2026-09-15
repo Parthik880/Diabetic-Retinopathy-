@@ -7,6 +7,8 @@ from copy import deepcopy
 import csv
 from datetime import datetime, timezone
 import json
+import logging
+import math
 from pathlib import Path
 import re
 import shutil
@@ -14,8 +16,10 @@ from threading import Condition, Lock, RLock
 from uuid import uuid4
 
 from PIL import Image
+import torch
 
 from inference.pipeline import PipelineState, run_analysis_pipeline
+from inference.batch_pipeline import run_analysis_batch
 from utils.reporting import export_report_bundle, sanitize_windows_name
 
 
@@ -23,6 +27,7 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp"}
 IGNORED_SUPPORT_FILES = {"desktop.ini", "thumbs.db", ".ds_store"}
 TERMINAL_EYE_STATES = {"Completed", "Recapture Required", "Failed"}
 ACTIVE_BATCH_STATES = {"Processing", "Pausing", "Paused", "Cancelling"}
+LOGGER = logging.getLogger("uvicorn.error")
 CSV_FIELDS = [
     "patient_id", "patient_name", "session_id", "eye", "iqa_class",
     "iqa_confidence", "dr_grade", "dr_confidence", "lesion_count",
@@ -48,6 +53,27 @@ STAGE_LOG_LABELS = {
     PipelineState.RECAPTURE_REQUIRED: "Recapture required",
     PipelineState.FAILED: "Analysis failed",
 }
+
+
+def _batch_size_for_device(device) -> int:
+    """Calculate the internal tensor-batch target from the inference GPU's VRAM."""
+    try:
+        device = torch.device(device)
+        if device.type != "cuda" or not torch.cuda.is_available():
+            return 1
+        # CUDA reports bytes; use GPU memory MB (1024 ** 2 bytes), e.g. 12 GiB
+        # is 12288 MB. Use the inference device's total VRAM, not free memory.
+        vram_mb = torch.cuda.get_device_properties(device).total_memory / (1024 ** 2)
+        if not math.isfinite(vram_mb) or vram_mb <= 0:
+            raise ValueError("Invalid GPU VRAM")
+        batch_size = max(1, math.floor(0.006 * vram_mb + 41.66))
+    except Exception:
+        LOGGER.warning("GPU VRAM detection failed; using conservative batch scheduling")
+        return 1
+    # Backend logger only: _log() would expose these values in the batch UI.
+    LOGGER.info("Detected GPU VRAM: %g MB", vram_mb)
+    LOGGER.info("Calculated batch size: %d", batch_size)
+    return batch_size
 
 
 def _now() -> str:
@@ -824,10 +850,140 @@ class BatchAnalysisManager:
             path.write_text(json.dumps(value, indent=2), encoding="utf-8")
 
     def _run(self, batch_id: str) -> None:
+        quality_model = self.registry.models.get("quality")
+        if callable(getattr(quality_model, "predict_batch", None)):
+            self._run_tensor_batches(batch_id)
+        else:
+            # Lightweight test registries and older plug-ins retain the legacy
+            # one-image path; the shipped GPU registry always uses tensor batches.
+            self._run_sequential(batch_id)
+
+    def _run_tensor_batches(self, batch_id: str) -> None:
+        with self._lock:
+            batch = self._batches[batch_id]
+        patient_eye_futures: dict[str, list[Future]] = {
+            patient["session_id"]: [] for patient in batch["patients"]
+        }
+        try:
+            target_batch_size = _batch_size_for_device(self.registry.device)
+            LOGGER.info("Target batch size: %d", target_batch_size)
+            effective_batch_size = target_batch_size
+            work = [
+                (patient, patient["eyes"][eye_name])
+                for patient in batch["patients"] if patient["status"] != "Skipped"
+                for eye_name in ("OS", "OD") if eye_name in patient["eyes"]
+            ]
+            offset = 0
+            while offset < len(work):
+                if not self._safe_boundary(batch):
+                    break
+                selected = work[offset:offset + effective_batch_size]
+                offset += len(selected)
+                entries, mapped = [], []
+                for patient, eye_data in selected:
+                    if self._resume_eye(batch, patient, eye_data):
+                        continue
+                    run_id, input_path = self._prepare_run(eye_data)
+                    eye_data.update(status="Queued", stage=PipelineState.WAITING.value, run_id=run_id, error=None)
+                    entries.append({"original_path": input_path, "run_id": run_id, "eye": eye_data["eye"]})
+                    mapped.append((patient, eye_data, input_path.parent))
+                if not entries:
+                    continue
+
+                def on_batch_start(indices: list[int]) -> None:
+                    with self._lock:
+                        entered_at = _now()
+                        log_time = _display_time()
+                        for index in indices:
+                            patient, eye_data, _run_dir = mapped[index]
+                            if eye_data["status"] == "Queued":
+                                batch["logs"].append({"time": log_time, "patient_id": patient["patient_id"],
+                                                      "eye": eye_data["eye"], "message": "Analysis started"})
+                            eye_data.update(status="Processing", stage=PipelineState.IQA.value)
+                            patient["status"] = "Processing"
+                        batch["logs"] = batch["logs"][-200:]
+                        batch["updated_at"] = entered_at
+                        LOGGER.info("GPU mini-batch entered: %d items", len(indices))
+
+                def on_state(index: int, state: PipelineState) -> None:
+                    patient, eye_data, _run_dir = mapped[index]
+                    with self._lock:
+                        eye_data["stage"] = state.value
+                        if state in {PipelineState.IQA_GOOD, PipelineState.IQA_USABLE, PipelineState.IQA_REJECTED}:
+                            eye_data["quality_route"] = {
+                                PipelineState.IQA_GOOD: "GOOD",
+                                PipelineState.IQA_USABLE: "USABLE",
+                                PipelineState.IQA_REJECTED: "RECAPTURE",
+                            }[state]
+                        batch["currently_processing"] = {
+                            "patient_id": patient["patient_id"], "eye": eye_data["eye"], "stage": state.value,
+                        }
+                        self._log(batch, patient["patient_id"], eye_data["eye"], STAGE_LOG_LABELS[state])
+
+                outcome = run_analysis_batch(
+                    items=entries, registry=self.registry, runs_root=self.runs_root,
+                    target_batch_size=effective_batch_size, on_state=on_state,
+                    on_batch_start=on_batch_start,
+                )
+                effective_batch_size = min(effective_batch_size, outcome["effective_batch_size"])
+                LOGGER.info(
+                    "GPU batch complete: target=%d effective=%d peak_vram_mib=%.1f oom_fallback=%s",
+                    target_batch_size, min(outcome["largest_batch_used"], effective_batch_size),
+                    outcome["peak_vram_mib"], outcome["oom_fallback"],
+                )
+                for result, (patient, eye_data, run_dir) in zip(outcome["results"], mapped, strict=True):
+                    with self._lock:
+                        if isinstance(result, Exception):
+                            eye_data.update(status="Failed", stage=PipelineState.FAILED.value,
+                                            error=str(result) or result.__class__.__name__)
+                            self._log(batch, patient["patient_id"], eye_data["eye"], f"Failed: {eye_data['error']}")
+                            continue
+                        eye_data["result"] = result
+                        eye_data["stage"] = result["state"]
+                        if result["state"] == PipelineState.RECAPTURE_REQUIRED.value:
+                            eye_data["status"] = "Recapture Required"
+                            self._log(batch, patient["patient_id"], eye_data["eye"], "Recapture required; downstream models skipped")
+                        else:
+                            eye_data["status"] = "Finalizing"
+                            self._log(batch, patient["patient_id"], eye_data["eye"], "Analysis complete; generating report")
+                    future = self._cpu.submit(self._finalize_eye, batch, patient, eye_data, run_dir)
+                    patient_eye_futures[patient["session_id"]].append(future)
+
+            patient_futures = []
+            for patient in batch["patients"]:
+                if patient["status"] == "Skipped":
+                    continue
+                futures = patient_eye_futures[patient["session_id"]]
+                if futures or all(eye["status"] in TERMINAL_EYE_STATES for eye in patient["eyes"].values()):
+                    patient["status"] = "Finalizing"
+                    patient_futures.append(self._cpu.submit(self._finalize_patient, batch, patient, futures))
+            if patient_futures:
+                wait(patient_futures)
+            with self._lock:
+                batch["state"] = "Cancelled" if batch["cancel_requested"] else "Completed"
+                batch["currently_processing"] = None
+                self._write_summary(batch)
+                self._write_manifest(batch)
+                self._log(batch, "BATCH", None, "Batch cancelled safely" if batch["cancel_requested"] else "Batch completed")
+        except Exception as exc:
+            with self._lock:
+                batch["state"] = "Failed"
+                batch["error"] = str(exc) or exc.__class__.__name__
+                batch["currently_processing"] = None
+                self._write_manifest(batch)
+                self._log(batch, "BATCH", None, f"Batch failed: {batch['error']}")
+        finally:
+            self._persist(batch)
+
+    def _run_sequential(self, batch_id: str) -> None:
         with self._lock:
             batch = self._batches[batch_id]
         patient_futures: list[Future] = []
         try:
+            # Detect once per run, retaining the value across pause/resume.
+            # The registry lock and all model inference code remain unchanged.
+            batch_size = _batch_size_for_device(self.registry.device)
+            pending_images: list[Future] = []
             for patient in batch["patients"]:
                 if patient["status"] == "Skipped":
                     continue
@@ -841,6 +997,10 @@ class BatchAnalysisManager:
                     future = self._run_eye(batch, patient, eye_data)
                     if future is not None:
                         eye_futures.append(future)
+                        pending_images.append(future)
+                        if len(pending_images) >= batch_size:
+                            wait(pending_images)
+                            pending_images.clear()
                 if eye_futures or all(eye["status"] in TERMINAL_EYE_STATES for eye in patient["eyes"].values()):
                     patient["status"] = "Finalizing"
                     patient_futures.append(self._cpu.submit(self._finalize_patient, batch, patient, eye_futures))

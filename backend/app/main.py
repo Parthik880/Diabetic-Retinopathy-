@@ -22,6 +22,8 @@ from utils.reporting import create_report_root, export_report_bundle
 from app.jobs import AnalysisJobManager
 from app.history import HistoryStore
 from app.batch import BatchAnalysisManager
+from app.local_data import LocalDataService
+from asyncio import Lock as AsyncLock
 
 RUNTIME_ROOT = Path(os.environ.get('RETINA_RUNTIME_ROOT', ROOT / 'work')).expanduser().resolve()
 RUNS = RUNTIME_ROOT / 'runs'
@@ -42,6 +44,14 @@ async def lifespan(app):
         runs_root=RUNS,
         logo_path=ROOT / 'frontend' / 'public' / 'logo.png.jpeg',
     )
+    def analysis_busy():
+        with app.state.jobs._lock:
+            if any(job['state'] not in {'COMPLETE', 'RECAPTURE_REQUIRED', 'FAILED'} for job in app.state.jobs._jobs.values()):
+                return True
+        with app.state.batches._lock:
+            return any(batch['state'] in {'Processing', 'Pausing', 'Paused', 'Cancelling'} for batch in app.state.batches._batches.values())
+    app.state.local_data = LocalDataService(RUNTIME_ROOT, app.state.history, analysis_busy)
+    app.state.data_gate = AsyncLock()
     try:
         yield
     finally:
@@ -50,6 +60,15 @@ async def lifespan(app):
 
 
 app = FastAPI(title='Retina desktop inference', lifespan=lifespan)
+
+
+@app.middleware('http')
+async def coordinate_local_data(request, call_next):
+    # Prevent a new job/export/history write racing confirmed cleanup.
+    if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+        async with app.state.data_gate:
+            return await call_next(request)
+    return await call_next(request)
 app.add_middleware(CORSMiddleware,
                    allow_origins=['http://127.0.0.1:5173', 'http://localhost:5173'],
                    allow_methods=['GET', 'POST'], allow_headers=['Content-Type'])
@@ -276,6 +295,53 @@ def history_records():
 def save_history_session(payload: dict):
     try:
         return {'record': app.state.history.upsert(payload)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get('/api/patients')
+def patients():
+    return {'patients': app.state.history.list_patients()}
+
+
+@app.post('/api/patients', status_code=201)
+def register_patient(payload: dict):
+    try:
+        return {'patient': app.state.history.register_patient(payload)}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get('/api/data')
+def local_data_overview():
+    return app.state.local_data.overview()
+
+
+@app.put('/api/data/sync-settings')
+def sync_settings(payload: dict):
+    try:
+        return app.state.local_data.update_settings(payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post('/api/data/sync')
+def sync_now():
+    raise HTTPException(503, 'Cloud synchronization is not configured. Your data remains stored locally; nothing was uploaded.')
+
+
+@app.post('/api/data/clear-preview')
+def clear_data_preview(payload: dict):
+    try:
+        return app.state.local_data.preview(payload.get('categories'))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post('/api/data/clear')
+def clear_local_data(payload: dict):
+    try:
+        return app.state.local_data.clear(payload.get('token'), payload.get('confirmed'), payload.get('typed'))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
