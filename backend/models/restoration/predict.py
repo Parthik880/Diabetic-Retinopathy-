@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 
 import numpy as np
 import torch
@@ -55,9 +56,14 @@ def restore_image(
     device: str | torch.device | None = None,
     output_dir: str | Path | None = None,
     model: NAFNet | None = None,
+    timing: dict | None = None,
 ) -> dict:
     """Restore one RGB image without resizing or applying ImageNet normalization."""
+    timing = timing if timing is not None else {}
+    total_started = time.perf_counter_ns()
+    started = time.perf_counter_ns()
     path = validate_image(image_path)
+    timing["validation_ms"] = timing.get("validation_ms", 0.0) + (time.perf_counter_ns() - started) / 1_000_000
     checkpoint_info = {}
     if model is None:
         model, checkpoint_info = load_restoration_model(checkpoint, device=device)
@@ -66,17 +72,28 @@ def restore_image(
     except StopIteration as exc:
         raise RuntimeError("Restoration model has no parameters") from exc
 
+    started = time.perf_counter_ns()
     with Image.open(path) as image:
         rgb_image = image.convert("RGB")
         pixels = np.asarray(rgb_image, dtype=np.float32) / 255.0
         input_size = rgb_image.size
+    timing["preprocessing_ms"] = timing.get("preprocessing_ms", 0.0) + (time.perf_counter_ns() - started) / 1_000_000
+    started = time.perf_counter_ns()
     input_tensor = (
         torch.from_numpy(np.ascontiguousarray(pixels.transpose(2, 0, 1)))
         .unsqueeze(0)
         .to(model_device)
     )
+    if model_device.type == "cuda":
+        torch.cuda.synchronize(model_device)
+    timing["h2d_transfer_ms"] = timing.get("h2d_transfer_ms", 0.0) + (time.perf_counter_ns() - started) / 1_000_000
+    started = time.perf_counter_ns()
     with torch.inference_mode():
         restored_tensor = model(input_tensor)
+    if model_device.type == "cuda":
+        torch.cuda.synchronize(model_device)
+    timing["nafnet_forward_ms"] = timing.get("nafnet_forward_ms", 0.0) + (time.perf_counter_ns() - started) / 1_000_000
+    started = time.perf_counter_ns()
     restored = (
         restored_tensor.squeeze(0)
         .detach()
@@ -86,6 +103,7 @@ def restore_image(
         .permute(1, 2, 0)
         .numpy()
     )
+    timing["d2h_transfer_ms"] = timing.get("d2h_transfer_ms", 0.0) + (time.perf_counter_ns() - started) / 1_000_000
     if restored.shape[:2] != (input_size[1], input_size[0]):
         raise RuntimeError("NAFNet output dimensions do not match the input")
 
@@ -95,8 +113,11 @@ def restore_image(
         if output_dir is not None
         else DEFAULT_OUTPUT_DIR,
     )
+    started = time.perf_counter_ns()
     output_pixels = np.rint(restored * 255.0).astype(np.uint8)
     Image.fromarray(output_pixels, mode="RGB").save(destination)
+    timing["png_writing_ms"] = timing.get("png_writing_ms", 0.0) + (time.perf_counter_ns() - started) / 1_000_000
+    timing["total_ms"] = timing.get("total_ms", 0.0) + (time.perf_counter_ns() - total_started) / 1_000_000
     return {
         "restored_image": restored,
         "output_path": str(destination.resolve()),

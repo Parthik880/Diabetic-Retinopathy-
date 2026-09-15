@@ -2,6 +2,7 @@ from models.lesion.predict import IMAGE_SIZE, LESION_CLASSES, predict_lesions, p
 from models.lesion.visualization import LESION_COLORS
 from utils.visualization import save_attention, save_mask_layers
 from pathlib import Path
+from concurrent.futures import FIRST_COMPLETED, wait
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -26,6 +27,7 @@ def predict(
     optimize_artifacts: bool = True,
     generate_gradcam: bool = False,
     precomputed_original_probabilities: np.ndarray | None = None,
+    prevalidated_image: tuple[Path, int, int] | None = None,
 ):
     total_started = time.perf_counter_ns()
     timing = {}
@@ -41,11 +43,18 @@ def predict(
                             save_gradcam_overlay_images=not optimize_artifacts,
                             generate_localization_images=not optimize_artifacts,
                             defer_region_extraction=optimize_artifacts,
-                            precomputed_original_probabilities=precomputed_original_probabilities)
+                            precomputed_original_probabilities=precomputed_original_probabilities,
+                            prevalidated_image=prevalidated_image,
+                            defer_json_write=optimize_artifacts)
     if on_stage is not None:
         on_stage('LESION_REGION_EXTRACTION')
     started = time.perf_counter_ns()
-    maps = {code: np.load(item['probability_values_path'], allow_pickle=False) for code, item in result['lesions'].items()}
+    if precomputed_original_probabilities is None:
+        maps = {code: np.load(item['probability_values_path'], allow_pickle=False)
+                for code, item in result['lesions'].items()}
+    else:
+        maps = {code: precomputed_original_probabilities[item['channel']]
+                for code, item in result['lesions'].items()}
     _record(timing, 'probability_array_loading_ms', started)
     started = time.perf_counter_ns()
     processed = process_maps(maps, config, timing)
@@ -61,10 +70,11 @@ def predict(
     for code, item in result['lesions'].items():
         item.update(processed['lesions'][code])
         destination = Path(output_dir) / 'browser' / code
-        started = time.perf_counter_ns()
-        item.update(save_mask_layers(item['mask_path'], LESION_COLORS[code], destination / 'mask.png'))
-        _record(timing, 'browser_mask_saving_ms', started)
         values = maps[code]
+        started = time.perf_counter_ns()
+        item.update(save_mask_layers(item['mask_path'], LESION_COLORS[code], destination / 'mask.png',
+                                     values >= config.pixel_threshold))
+        _record(timing, 'browser_mask_saving_ms', started)
         started = time.perf_counter_ns()
         item['probability_heatmap'] = {**save_attention(values, destination / 'probability.png', item['probability_values_path']),
                                        'method': 'sigmoid segmentation probability',
@@ -104,7 +114,9 @@ def predict(
     result['timing_ms'] = timing
     serialized = json.dumps(result, indent=2, allow_nan=False)
     started = time.perf_counter_ns()
-    Path(result['json_path']).write_text(serialized, encoding='utf-8')
+    json_path = Path(result['json_path'])
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    json_path.write_text(serialized, encoding='utf-8')
     _record(timing, 'final_json_saving_ms', started)
     result['timing_ms'] = timing
     logging.getLogger('uvicorn.error').info('Lesion post-processing: %s; %.3fs',
@@ -113,7 +125,7 @@ def predict(
     return result
 
 
-def predict_batch(paths, model, output_dirs, on_stages=None):
+def predict_batch(paths, model, output_dirs, on_stages=None, *, executor=None, max_workers=1, timing=None):
     """Run one ordered UNet++ forward, then reuse the existing per-image postprocessing."""
     if len(paths) != len(output_dirs):
         raise ValueError('One lesion output directory is required per image.')
@@ -122,7 +134,10 @@ def predict_batch(paths, model, output_dirs, on_stages=None):
     callbacks = on_stages or [None] * len(paths)
     if len(callbacks) != len(paths):
         raise ValueError('One lesion stage callback is required per image.')
+    timing = timing if timing is not None else {}
+    started = time.perf_counter_ns()
     prepared = [preprocess_lesion_image(path) for path in paths]
+    timing['preprocessing_ms'] = (time.perf_counter_ns() - started) / 1_000_000
     image_paths = [item[0] for item in prepared]
     tensors = torch.cat([item[1] for item in prepared], dim=0)
     logging.getLogger('uvicorn.error').info('Lesion tensor shape: %s', list(tensors.shape))
@@ -134,26 +149,65 @@ def predict_batch(paths, model, output_dirs, on_stages=None):
     for callback in callbacks:
         if callback is not None:
             callback('LESION_INFERENCE')
+    if device.type == 'cuda':
+        torch.cuda.synchronize(device)
+    started = time.perf_counter_ns()
     model_input = tensors.to(device)
+    if device.type == 'cuda':
+        torch.cuda.synchronize(device)
+    timing['h2d_transfer_ms'] = (time.perf_counter_ns() - started) / 1_000_000
     try:
         with torch.inference_mode():
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            started = time.perf_counter_ns()
             logits = model(model_input)
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            timing['unet_forward_ms'] = (time.perf_counter_ns() - started) / 1_000_000
+            started = time.perf_counter_ns()
             probabilities = torch.sigmoid(logits)
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            timing['sigmoid_ms'] = (time.perf_counter_ns() - started) / 1_000_000
         expected = (len(paths), len(LESION_CLASSES), IMAGE_SIZE, IMAGE_SIZE)
         if tuple(logits.shape) != expected:
             raise RuntimeError(f'Expected batched lesion logits with shape {expected}, received {tuple(logits.shape)}')
-        resized = [
-            F.interpolate(probabilities[index:index + 1], size=size, mode='bilinear', align_corners=False)[0]
-            .detach().float().cpu().numpy()
-            for index, size in enumerate(sizes)
-        ]
+        del logits
+        results = [None] * len(paths)
+        pending = {}
+        resize_ms = d2h_ms = 0.0
+        post_started = time.perf_counter_ns()
+        for index, (path, output_dir, callback, size) in enumerate(
+                zip(image_paths, output_dirs, callbacks, sizes, strict=True)):
+            started = time.perf_counter_ns()
+            resized = F.interpolate(probabilities[index:index + 1], size=size, mode='bilinear',
+                                    align_corners=False)[0]
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            resize_ms += (time.perf_counter_ns() - started) / 1_000_000
+            started = time.perf_counter_ns()
+            values = resized.detach().float().cpu().numpy()
+            if device.type == 'cuda':
+                torch.cuda.synchronize(device)
+            d2h_ms += (time.perf_counter_ns() - started) / 1_000_000
+            args = (path, model, output_dir)
+            kwargs = {'on_stage': callback, 'precomputed_original_probabilities': values,
+                      'prevalidated_image': (path, size[0], size[1])}
+            if executor is None:
+                results[index] = predict(*args, **kwargs)
+            else:
+                pending[executor.submit(predict, *args, **kwargs)] = index
+                if len(pending) >= max(1, max_workers) * 2:
+                    done, _ = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        results[pending.pop(future)] = future.result()
+        for future, index in list(pending.items()):
+            results[index] = future.result()
+        timing['probability_resize_ms'] = resize_ms
+        timing['d2h_transfer_ms'] = d2h_ms
+        timing['postprocessing_wall_ms'] = (time.perf_counter_ns() - post_started) / 1_000_000
     finally:
         del model_input
-    del logits, probabilities, tensors
-    results = []
-    for path, output_dir, callback, values in zip(image_paths, output_dirs, callbacks, resized, strict=True):
-        results.append(predict(
-            path, model, output_dir, on_stage=callback,
-            precomputed_original_probabilities=values,
-        ))
+    del probabilities, tensors
     return results

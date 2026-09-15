@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Lock
@@ -12,7 +13,8 @@ import sys
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from inference.batch_pipeline import _adaptive_map, run_analysis_batch
+from inference.batch_pipeline import _adaptive_map, _postprocess_worker_count, run_analysis_batch
+from inference import lesions as lesion_inference
 
 
 class Registry:
@@ -52,19 +54,19 @@ class TensorBatchTests(unittest.TestCase):
     def run_mocked(self, count, target, malformed=None, stages=None):
         calls = {"iqa": [], "grading": [], "lesion": []}
 
-        def iqa(images, _model):
+        def iqa(images, _model, **_kwargs):
             calls["iqa"].append(len(images))
             return [{"class_id": 0, "quality": "Good", "confidence": 0.9,
                      "probabilities": {"Good": 0.9, "Usable": 0.08, "Reject": 0.02}}
                     for _ in images]
 
-        def grading(paths, _model, _outputs):
+        def grading(paths, _model, _outputs, **_kwargs):
             calls["grading"].append(len(paths))
             return [{"predicted_class": index % 5, "predicted_grade": index % 5,
                      "confidence": 0.8, "probabilities": [0.2] * 5, "image_path": str(path)}
                     for index, path in enumerate(paths)]
 
-        def lesion(paths, _model, _outputs, callbacks):
+        def lesion(paths, _model, _outputs, callbacks, **_kwargs):
             calls["lesion"].append(len(paths))
             for callback in callbacks:
                 for state in ("LESION_INFERENCE", "LESION_MASK_PROCESSING", "LESION_REGION_EXTRACTION", "LESION_RESULTS_SAVING"):
@@ -104,15 +106,25 @@ class TensorBatchTests(unittest.TestCase):
         self.assertEqual(seen, [list(range(7))])
         empty_cache.assert_called_once()
 
+    def test_postprocess_workers_are_capped_by_cpu_and_available_ram(self):
+        with patch("inference.batch_pipeline.os.cpu_count", return_value=12), \
+             patch("inference.batch_pipeline._available_ram_bytes", return_value=16 * 1024 ** 3):
+            self.assertEqual(_postprocess_worker_count(), 4)
+        with patch("inference.batch_pipeline.os.cpu_count", return_value=2), \
+             patch("inference.batch_pipeline._available_ram_bytes", return_value=1024 ** 3):
+            self.assertEqual(_postprocess_worker_count(), 1)
+
     def test_over_limit_is_rejected_before_any_forward(self):
         with self.assertRaisesRegex(ValueError, "Maximum 2 images; received 3"):
             self.run_mocked(3, 2)
 
     def test_display_stages_are_emitted_in_backend_order(self):
         stages = []
-        self.run_mocked(5, 5, stages=stages)
+        with self.assertLogs("uvicorn.error", level="INFO") as logs:
+            self.run_mocked(5, 5, stages=stages)
         self.assertEqual([stage for stage, _indices in stages], [1, 2, 3, 4])
         self.assertTrue(all(indices == list(range(5)) for _stage, indices in stages))
+        self.assertIn("STAGE 3 PROFILE", " ".join(logs.output))
 
     def test_malformed_image_fails_only_that_item_and_mapping_is_exact(self):
         outcome, calls = self.run_mocked(3, 3, malformed=1)
@@ -121,6 +133,49 @@ class TensorBatchTests(unittest.TestCase):
         self.assertIsInstance(outcome["results"][1], Exception)
         self.assertEqual(outcome["results"][2]["run_id"], f"{2:032x}")
         self.assertEqual(Path(outcome["results"][2]["grading"]["image_path"]).parent.name, f"{2:032x}")
+
+    def test_lesion_postprocessing_is_bounded_ordered_after_one_batched_forward(self):
+        items = self.make_items(5)
+        paths = [Path(item["original_path"]) for item in items]
+        outputs = [path.parent / "lesion" for path in paths]
+        index_by_path = {path.resolve(): index for index, path in enumerate(paths)}
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.anchor = torch.nn.Parameter(torch.zeros(1))
+                self.calls = 0
+
+            def forward(self, tensor):
+                self.calls += 1
+                self.batch_shape = list(tensor.shape)
+                return tensor[:, :1].repeat(1, 4, 1, 1)
+
+        model = Model()
+
+        def preprocess(path):
+            index = index_by_path[Path(path).resolve()]
+            return Path(path).resolve(), torch.full((1, 3, 8, 8), float(index))
+
+        def finish(path, _model, _output, **kwargs):
+            index = index_by_path[Path(path).resolve()]
+            self.assertEqual(kwargs["prevalidated_image"][0], Path(path).resolve())
+            return {"image": str(path), "marker": float(kwargs["precomputed_original_probabilities"][0, 0, 0]),
+                    "timing_ms": {}}
+
+        timing = {}
+        with ThreadPoolExecutor(max_workers=2) as executor, \
+             patch.object(lesion_inference, "IMAGE_SIZE", 8), \
+             patch.object(lesion_inference, "preprocess_lesion_image", side_effect=preprocess), \
+             patch.object(lesion_inference, "predict", side_effect=finish):
+            results = lesion_inference.predict_batch(
+                paths, model, outputs, executor=executor, max_workers=2, timing=timing)
+
+        self.assertEqual(model.calls, 1)
+        self.assertEqual(model.batch_shape, [5, 3, 8, 8])
+        expected = [float(torch.sigmoid(torch.tensor(float(index)))) for index in range(5)]
+        self.assertEqual([result["marker"] for result in results], expected)
+        self.assertIn("postprocessing_wall_ms", timing)
 
 
 if __name__ == "__main__":

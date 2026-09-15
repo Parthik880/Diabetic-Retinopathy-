@@ -6,6 +6,7 @@ import json
 from contextlib import contextmanager
 from pathlib import Path
 import time
+from threading import Lock
 from typing import Callable, Iterator
 
 import numpy as np
@@ -38,6 +39,7 @@ DEFAULT_MIN_COMPONENT_AREA = 3
 DEFAULT_OUTPUT_DIR = (
     Path(__file__).resolve().parents[2] / "inference" / "outputs" / "lesion"
 )
+_MATPLOTLIB_LOCK = Lock()
 
 
 def _cuda_sync(device: torch.device | None) -> None:
@@ -127,6 +129,8 @@ def predict_lesions(
     generate_localization_images: bool = True,
     defer_region_extraction: bool = False,
     precomputed_original_probabilities: np.ndarray | None = None,
+    prevalidated_image: tuple[Path, int, int] | None = None,
+    defer_json_write: bool = False,
 ) -> dict:
     """Predict lesions and return JSON-compatible estimated localization data.
 
@@ -143,9 +147,16 @@ def predict_lesions(
 
     timing = timing if timing is not None else {}
     total_started = time.perf_counter_ns()
-    path, image_tensor = preprocess_lesion_image(image_path, timing)
+    if prevalidated_image is None:
+        path, image_tensor = preprocess_lesion_image(image_path, timing)
+    else:
+        path, known_height, known_width = prevalidated_image
+        path = Path(path).resolve()
+        image_tensor = None
     original_rgb = _load_original_rgb(path, timing)
     image_height, image_width = original_rgb.shape[:2]
+    if prevalidated_image is not None and (image_height, image_width) != (known_height, known_width):
+        raise RuntimeError("Prevalidated lesion image dimensions changed before postprocessing.")
     destination = (
         Path(output_dir).expanduser().resolve()
         if output_dir is not None
@@ -210,7 +221,7 @@ def predict_lesions(
                 "Precomputed lesion probabilities do not match the image dimensions: "
                 f"{original_probabilities.shape}"
             )
-        model_input = image_tensor
+        model_input = None
         timing["input_device"] = str(model_device)
         timing["grad_enabled_inside_forward"] = False
         timing["model_forward_count"] = 1
@@ -327,8 +338,9 @@ def predict_lesions(
     boxes_path = destination / f"{run_stem}_lesion_boxes.png"
     centers_path = destination / f"{run_stem}_lesion_centers.png"
     analysis_path = destination / f"{run_stem}_analysis.png"
-    with _timed(timing, "overlay_generation_saving_ms"):
-        overlay = save_combined_overlay(original_rgb, filtered_masks, overlay_path)
+    with _MATPLOTLIB_LOCK:
+        with _timed(timing, "overlay_generation_saving_ms"):
+            overlay = save_combined_overlay(original_rgb, filtered_masks, overlay_path)
     boxes = original_rgb
     centers = original_rgb
     if generate_localization_images:
@@ -396,12 +408,13 @@ def predict_lesions(
             "they are not ground-truth annotations or clinical confidence scores."
         ),
     }
-    with _timed(timing, "json_result_serialization_ms"):
-        json.dumps(result, indent=2, allow_nan=False)
-    with _timed(timing, "json_result_saving_ms"):
-        json_path.parent.mkdir(parents=True, exist_ok=True)
-        with json_path.open("w", encoding="utf-8") as handle:
-            json.dump(result, handle, indent=2, allow_nan=False)
+    if not defer_json_write:
+        with _timed(timing, "json_result_serialization_ms"):
+            json.dumps(result, indent=2, allow_nan=False)
+        with _timed(timing, "json_result_saving_ms"):
+            json_path.parent.mkdir(parents=True, exist_ok=True)
+            with json_path.open("w", encoding="utf-8") as handle:
+                json.dump(result, handle, indent=2, allow_nan=False)
     if model_device.type == "cuda":
         timing["memory_allocated_after_mib"] = torch.cuda.memory_allocated(model_device) / 1048576
         timing["memory_reserved_after_mib"] = torch.cuda.memory_reserved(model_device) / 1048576

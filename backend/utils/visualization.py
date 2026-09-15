@@ -23,9 +23,12 @@ def save_attention(values, destination: Path, values_path: str | Path | None = N
             'colormap': 'jet', 'normalization': '0 to 1', 'pixel_aligned': True}
 
 
-def save_mask_layers(mask_path, color, destination: Path):
-    with Image.open(mask_path) as image:
-        mask = np.asarray(image).astype(bool)
+def save_mask_layers(mask_path, color, destination: Path, mask_values=None):
+    if mask_values is None:
+        with Image.open(mask_path) as image:
+            mask = np.asarray(image).astype(bool)
+    else:
+        mask = np.asarray(mask_values, dtype=bool)
     destination.parent.mkdir(parents=True, exist_ok=True)
     binary = destination.with_name(destination.stem + '_binary.png')
     Image.fromarray(mask.astype(np.uint8) * 255).save(binary, compress_level=1)

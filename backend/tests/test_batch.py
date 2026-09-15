@@ -316,7 +316,7 @@ class BatchManagerTests(unittest.TestCase):
             make_image(self.input / f"RH{5000 + index}_Patient{index}_OS.jpg")
 
         class QualityModel:
-            def predict_batch(_self, images):
+            def predict_batch(_self, images, **_kwargs):
                 tensor = torch.stack([torch.zeros(3, 224, 224) for _ in images])
                 shapes["iqa"] = list(tensor.shape)
                 forwards["iqa"] += 1
@@ -331,7 +331,7 @@ class BatchManagerTests(unittest.TestCase):
         discovered = self.manager.discover(self.input)
         batch_id = discovered["batch_id"]
 
-        def grade(paths, _model, _outputs):
+        def grade(paths, _model, _outputs, **_kwargs):
             tensor = torch.stack([torch.zeros(3, 224, 224) for _ in paths])
             shapes["grading"] = list(tensor.shape)
             forwards["grading"] += 1
@@ -340,7 +340,7 @@ class BatchManagerTests(unittest.TestCase):
                      "probabilities": [0.2] * 5, "image_path": str(path)}
                     for index, path in enumerate(paths)]
 
-        def lesion(paths, _model, _outputs, callbacks):
+        def lesion(paths, _model, _outputs, callbacks, **_kwargs):
             tensor = torch.stack([torch.zeros(3, 768, 768) for _ in paths])
             shapes["lesion"] = list(tensor.shape)
             forwards["lesion"] += 1
@@ -381,6 +381,8 @@ class BatchManagerTests(unittest.TestCase):
                           for index in range(5)], list(range(5)))
         joined_logs = " ".join(logs.output)
         self.assertIn("GPU mini-batch entered: 5 items", joined_logs)
+        for stage in range(1, 5):
+            self.assertIn(f"STAGE {stage} PROFILE", joined_logs)
         self.assertEqual(joined_logs.count("GPU mini-batch entered:"), 1)
         for shape in shapes.values():
             self.assertIn(str(shape), joined_logs)
@@ -391,18 +393,18 @@ class BatchManagerTests(unittest.TestCase):
             make_image(self.input / f"RH{7000 + index}_Patient_OS.jpg")
 
         class QualityModel:
-            def predict_batch(_self, images):
+            def predict_batch(_self, images, **_kwargs):
                 sizes.append(("iqa", len(images)))
                 return [{"quality": "Good", "confidence": 1.0, "probabilities": {}} for _ in images]
 
         self.registry.models["quality"] = QualityModel()
         discovered = self.manager.discover(self.input)
 
-        def grade(paths, _model, _outputs):
+        def grade(paths, _model, _outputs, **_kwargs):
             sizes.append(("grade", len(paths)))
             return [{"predicted_grade": 0, "confidence": 1.0, "probabilities": [1, 0, 0, 0, 0]} for _ in paths]
 
-        def lesion(paths, _model, _outputs, _callbacks):
+        def lesion(paths, _model, _outputs, _callbacks, **_kwargs):
             sizes.append(("lesion", len(paths)))
             return [{"lesions": {}} for _ in paths]
 

@@ -1,0 +1,10 @@
+measurement_type,vram_mb,vram_gb,predicted_max_batch_size,formula
+formula_prediction,2048,2.000,53,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,3072,3.000,60,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,4096,4.000,66,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,6144,6.000,78,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,8192,8.000,90,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,10240,10.000,103,floor(0.006 * VRAM_MB + 41.66)
+measured,12288,12.000,115,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,16384,16.000,139,floor(0.006 * VRAM_MB + 41.66)
+formula_prediction,24576,24.000,189,floor(0.006 * VRAM_MB + 41.66)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 import logging
+import time
 
 import torch
 from PIL import Image
@@ -69,21 +70,41 @@ class EfficientNetIQAService:
         ])
 
     @torch.inference_mode()
-    def predict_batch(self, images: list[Image.Image]) -> list[dict]:
+    def predict_batch(self, images: list[Image.Image], timing=None) -> list[dict]:
         """Predict one ordered result per image with a single model forward."""
         if not images:
             return []
+        timing = timing if timing is not None else {}
+        started = time.perf_counter_ns()
         batch = torch.stack([
             self.transform(image.convert("RGB")) for image in images
-        ]).to(self.device)
+        ])
+        timing["preprocessing_ms"] = (time.perf_counter_ns() - started) / 1_000_000
+        if self.device.type == "cuda":
+            torch.cuda.synchronize(self.device)
+        started = time.perf_counter_ns()
+        batch = batch.to(self.device)
+        if self.device.type == "cuda":
+            torch.cuda.synchronize(self.device)
+        timing["h2d_transfer_ms"] = (time.perf_counter_ns() - started) / 1_000_000
         logging.getLogger("uvicorn.error").info("IQA tensor shape: %s", list(batch.shape))
+        started = time.perf_counter_ns()
         features = self.feature_extractor(batch).flatten(start_dim=1)
+        if self.device.type == "cuda":
+            torch.cuda.synchronize(self.device)
+        timing["feature_forward_ms"] = (time.perf_counter_ns() - started) / 1_000_000
+        started = time.perf_counter_ns()
         logits = self.classifier(features)
+        if self.device.type == "cuda":
+            torch.cuda.synchronize(self.device)
+        timing["classifier_forward_ms"] = (time.perf_counter_ns() - started) / 1_000_000
+        started = time.perf_counter_ns()
         probabilities = torch.softmax(logits / self.temperature, dim=1)
         if not torch.isfinite(probabilities).all():
             raise RuntimeError("IQA returned non-finite probabilities")
         values = probabilities.detach().cpu().tolist()
         class_ids = probabilities.argmax(dim=1).detach().cpu().tolist()
+        timing["softmax_d2h_ms"] = (time.perf_counter_ns() - started) / 1_000_000
         return [{
             "class_id": int(class_id),
             "quality": IQA_CLASS_NAMES[class_id],

@@ -1,5 +1,7 @@
 """Grad-CAM implementation used by optional grade visualizations."""
 
+import time
+
 import torch
 import torch.nn.functional as F
 
@@ -38,13 +40,21 @@ class GradCAM:
         )
         return cams[0], logits, probabilities, classes[0]
 
-    def generate_batch(self, images, class_indices=None):
+    def generate_batch(self, images, class_indices=None, timing=None):
         """Generate ordered per-image CAMs with one forward and one backward."""
         self.model.eval()
         images = images.clone().requires_grad_(True)
         self.model.zero_grad(set_to_none=True)
 
+        timing = timing if timing is not None else {}
+        device = images.device
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        started = time.perf_counter_ns()
         logits = self.model(images)
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        timing["convnext_forward_ms"] = (time.perf_counter_ns() - started) / 1_000_000
         probabilities = torch.softmax(logits, dim=1)
         if class_indices is None:
             targets = logits.argmax(dim=1)
@@ -53,12 +63,19 @@ class GradCAM:
             if targets.shape != (images.shape[0],):
                 raise ValueError("One Grad-CAM class index is required per image")
 
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        started = time.perf_counter_ns()
         logits.gather(1, targets[:, None]).sum().backward()
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        timing["gradcam_backward_ms"] = (time.perf_counter_ns() - started) / 1_000_000
         if self.activations is None or self.gradients is None:
             raise RuntimeError(
                 "Grad-CAM hooks did not capture activations and gradients"
             )
 
+        started = time.perf_counter_ns()
         weights = self.gradients.mean(dim=(2, 3), keepdim=True)
         cam = (weights * self.activations).sum(dim=1, keepdim=True)
         cam = torch.relu(cam)
@@ -71,13 +88,17 @@ class GradCAM:
         minimum = cam.amin(dim=(1, 2), keepdim=True)
         maximum = cam.amax(dim=(1, 2), keepdim=True)
         cam = (cam - minimum) / (maximum - minimum + 1e-8)
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
 
-        return (
-            cam.detach().cpu(),
-            logits.detach().cpu(),
-            probabilities.detach().cpu(),
+        timing["gradcam_map_ms"] = (time.perf_counter_ns() - started) / 1_000_000
+        started = time.perf_counter_ns()
+        result = (
+            cam.detach().cpu(), logits.detach().cpu(), probabilities.detach().cpu(),
             [int(value) for value in targets.detach().cpu().tolist()],
         )
+        timing["grade_d2h_ms"] = (time.perf_counter_ns() - started) / 1_000_000
+        return result
 
     def remove_hooks(self) -> None:
         self.forward_hook.remove()

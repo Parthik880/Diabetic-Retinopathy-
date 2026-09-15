@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 import re
 import shutil
+import time
 from threading import Condition, Lock, RLock
 from uuid import uuid4
 
@@ -19,7 +20,7 @@ from PIL import Image
 import torch
 
 from inference.pipeline import PipelineState, run_analysis_pipeline
-from inference.batch_pipeline import run_analysis_batch
+from inference.batch_pipeline import _log_stage_profile, run_analysis_batch
 from utils.reporting import export_report_bundle, sanitize_windows_name
 
 
@@ -409,6 +410,11 @@ class BatchAnalysisManager:
         self._condition = Condition(self._lock)
         self._batches: dict[str, dict] = {}
 
+    def _record_profile(self, profile: dict | None, key: str, started: int) -> None:
+        if profile is not None:
+            with self._lock:
+                profile[key] = profile.get(key, 0.0) + (time.perf_counter_ns() - started) / 1_000_000
+
     def discover(self, input_path: Path) -> dict:
         discovered = discover_input_folder(input_path)
         batch_id = uuid4().hex
@@ -749,14 +755,19 @@ class BatchAnalysisManager:
         (eye_folder / "results.json").write_text(json.dumps(structured, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")
         (eye_folder / ".analysis_result.json").write_text(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")
 
-    def _finalize_eye(self, batch: dict, patient: dict, eye_data: dict, run_dir: Path) -> None:
+    def _finalize_eye(self, batch: dict, patient: dict, eye_data: dict, run_dir: Path,
+                      profile: dict | None = None) -> None:
+        total_started = time.perf_counter_ns()
         try:
             result = eye_data["result"] or {}
             if result.get("state") == PipelineState.RECAPTURE_REQUIRED.value:
+                started = time.perf_counter_ns()
                 self._recapture_output(batch, patient, eye_data)
+                self._record_profile(profile, "recapture_output_ms", started)
             else:
                 root = self._patient_folder(batch, patient)
                 root.mkdir(parents=True, exist_ok=True)
+                started = time.perf_counter_ns()
                 exported = export_report_bundle(
                     Path(batch["output_root"]),
                     run_dir=run_dir,
@@ -767,9 +778,11 @@ class BatchAnalysisManager:
                     logo_path=self.logo_path,
                     report_root=root,
                 )
+                self._record_profile(profile, "report_bundle_ms", started)
                 eye_folder = Path(exported["eye_folder"])
                 restored_png = eye_folder / "restored_fundus.png"
                 if restored_png.is_file():
+                    started = time.perf_counter_ns()
                     with Image.open(restored_png) as image:
                         image.convert("RGB").save(eye_folder / "restored_fundus.jpg", "JPEG", quality=95, optimize=True)
                     restored_png.unlink()
@@ -777,19 +790,25 @@ class BatchAnalysisManager:
                     exported_result = json.loads(results_path.read_text(encoding="utf-8"))
                     exported_result["restored_image_file"] = "restored_fundus.jpg"
                     results_path.write_text(json.dumps(exported_result, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+                    self._record_profile(profile, "restored_conversion_ms", started)
+                started = time.perf_counter_ns()
                 (eye_folder / ".analysis_result.json").write_text(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+                self._record_profile(profile, "analysis_result_writing_ms", started)
                 with self._lock:
                     eye_data["report_path"] = exported["report"]
                     eye_data["status"] = "Completed"
                     eye_data["display_stage_label"] = "Completed"
                 self._log(batch, patient["patient_id"], eye_data["eye"], "Report generation complete")
+            started = time.perf_counter_ns()
             self._write_summary(batch)
+            self._record_profile(profile, "summary_writing_ms", started)
         except Exception as exc:
             with self._lock:
                 eye_data.update(status="Failed", stage=PipelineState.FAILED.value, error=f"Output generation failed: {exc}")
                 eye_data["display_stage_label"] = "Failed"
                 self._log(batch, patient["patient_id"], eye_data["eye"], eye_data["error"])
         finally:
+            self._record_profile(profile, "eye_finalization_ms", total_started)
             with self._lock:
                 current = batch.get("currently_processing")
                 if current and current["patient_id"] == patient["patient_id"] and current["eye"] == eye_data["eye"]:
@@ -811,7 +830,8 @@ class BatchAnalysisManager:
             "captured_at": _now(),
         }
 
-    def _finalize_patient(self, batch: dict, patient: dict, futures: list[Future]) -> None:
+    def _finalize_patient(self, batch: dict, patient: dict, futures: list[Future],
+                          profile: dict | None = None) -> None:
         if futures:
             wait(futures)
         with self._lock:
@@ -835,14 +855,18 @@ class BatchAnalysisManager:
                 "right_eye": self._history_eye(patient["eyes"].get("OD")),
             }
         try:
+            started = time.perf_counter_ns()
             self.history.upsert(record)
+            self._record_profile(profile, "history_persistence_ms", started)
             with self._lock:
                 self._log(batch, patient["patient_id"], None, f"Patient finished: {patient['status']}")
         except Exception as exc:
             with self._lock:
                 patient["status"] = "Failed"
                 self._log(batch, patient["patient_id"], None, f"History update failed: {exc}")
+        started = time.perf_counter_ns()
         self._write_summary(batch)
+        self._record_profile(profile, "summary_writing_ms", started)
 
     def _summary_rows(self, batch: dict) -> list[dict]:
         rows = []
@@ -903,11 +927,14 @@ class BatchAnalysisManager:
             self._run_sequential(batch_id)
 
     def _run_tensor_batches(self, batch_id: str) -> None:
+        stage1_started = time.perf_counter_ns()
         with self._lock:
             batch = self._batches[batch_id]
         patient_eye_futures: dict[str, list[Future]] = {
             patient["session_id"]: [] for patient in batch["patients"]
         }
+        stage4_started = None
+        stage4_timing = {}
         try:
             target_batch_size = int(batch["gpu_capacity"]["max_batch_size"])
             LOGGER.info("Target batch size: %d", target_batch_size)
@@ -927,7 +954,10 @@ class BatchAnalysisManager:
                     mapped.append((patient, eye_data, input_path.parent))
 
                 def set_display_stage(indices: list[int], stage_index: int) -> None:
+                    nonlocal stage4_started
                     with self._lock:
+                        if stage_index == 4 and stage4_started is None:
+                            stage4_started = time.perf_counter_ns()
                         label = DISPLAY_STAGES[stage_index]
                         for index in indices:
                             patient, eye_data, _run_dir = mapped[index]
@@ -963,6 +993,7 @@ class BatchAnalysisManager:
                         items=entries, registry=self.registry, runs_root=self.runs_root,
                         target_batch_size=target_batch_size, on_state=on_state,
                         on_batch_start=on_batch_start, on_display_stage=set_display_stage,
+                        stage1_started_ns=stage1_started,
                     )
                     LOGGER.info(
                         "GPU batch complete: requested=%d max=%d effective=%d peak_vram_mib=%.1f",
@@ -983,7 +1014,8 @@ class BatchAnalysisManager:
                             else:
                                 eye_data["status"] = "Finalizing"
                                 self._log(batch, patient["patient_id"], eye_data["eye"], "Analysis complete; generating report")
-                        future = self._cpu.submit(self._finalize_eye, batch, patient, eye_data, run_dir)
+                        future = self._cpu.submit(
+                            self._finalize_eye, batch, patient, eye_data, run_dir, stage4_timing)
                         patient_eye_futures[patient["session_id"]].append(future)
 
             patient_futures = []
@@ -993,15 +1025,29 @@ class BatchAnalysisManager:
                 futures = patient_eye_futures[patient["session_id"]]
                 if futures or all(eye["status"] in TERMINAL_EYE_STATES for eye in patient["eyes"].values()):
                     patient["status"] = "Finalizing"
-                    patient_futures.append(self._cpu.submit(self._finalize_patient, batch, patient, futures))
+                    patient_futures.append(self._cpu.submit(
+                        self._finalize_patient, batch, patient, futures, stage4_timing))
             if patient_futures:
                 wait(patient_futures)
+            final_files_started = time.perf_counter_ns()
             with self._lock:
                 batch["state"] = "Cancelled" if batch["cancel_requested"] else "Completed"
                 batch["currently_processing"] = None
                 self._write_summary(batch)
                 self._write_manifest(batch)
                 self._log(batch, "BATCH", None, "Batch cancelled safely" if batch["cancel_requested"] else "Batch completed")
+            self._record_profile(stage4_timing, "summary_writing_ms", final_files_started)
+            if stage4_started is not None:
+                _log_stage_profile(4, max(1, len(entries)), {
+                    "Analysis response writing": float(outcome.get("stage4_response_writing_ms", 0.0)),
+                    "Report bundle/PDF": float(stage4_timing.get("report_bundle_ms", 0.0)),
+                    "Recapture output": float(stage4_timing.get("recapture_output_ms", 0.0)),
+                    "Restored image conversion": float(stage4_timing.get("restored_conversion_ms", 0.0)),
+                    "Analysis result writing": float(stage4_timing.get("analysis_result_writing_ms", 0.0)),
+                    "History persistence": float(stage4_timing.get("history_persistence_ms", 0.0)),
+                    "Summary/manifest writing": float(stage4_timing.get("summary_writing_ms", 0.0)),
+                    "Total Stage 4": (time.perf_counter_ns() - stage4_started) / 1_000_000,
+                }, overlapping=True)
         except Exception as exc:
             with self._lock:
                 batch["state"] = "Failed"
