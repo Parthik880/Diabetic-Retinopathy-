@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "artifacts": [
+    {
+      "file": "iqa_int8.onnx",
+      "bytes": 13524697,
+      "sha256": "0cea57adbd1ceb4ce39ee91d6937b02628d80c81f990cf561cec3d5504377344",
+      "precision": "Partial QDQ INT8 / FP32"
+    },
+    {
+      "file": "nafnet_fp16.onnx",
+      "bytes": 59281867,
+      "sha256": "16551ebc2b5585ff5ce3f671aa54637a772bfe6a9a4a758d1060beb35a9430d8",
+      "precision": "FP16 internal compute / FP32 boundary"
+    },
+    {
+      "file": "lesion_bf16_cam.pt",
+      "bytes": 9177225,
+      "sha256": "8c7c95ff3084899caee1256b7a65f8e7f6b34ddbc84590a5fa7d8d285529fe77",
+      "precision": "BF16 TorchScript"
+    },
+    {
+      "file": "grade_bf16_cam.pt",
+      "bytes": 55974002,
+      "sha256": "807ccc43f47a930b66e8a90345604bf0c8c6d4e0cfc9dc0cdad39f15ae3e81c2",
+      "precision": "BF16 TorchScript"
+    }
+  ]
+}

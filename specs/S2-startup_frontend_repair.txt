@@ -1,0 +1,217 @@
+RetinaGram S2 — startup regression and frontend repair
+Date: 2026-10-04
+Project: C:\Users\ADMIN\Music\Diabetic Retinopathy C++
+
+REQUEST AND HISTORY
+The latest repair brief required startup diagnosis before frontend changes,
+preservation of production models and inference/workflow behavior, pc-gpu source
+comparison, normal development/package launches, screenshots, UI regression
+checks, and a packaged inference smoke test. S1-first_draft.txt was reviewed in
+chunks, along with README.md, BENCHMARK.md, CMakeLists.txt and both run/deploy
+scripts. S1 was not overwritten. The native repository has no usable committed
+history for the frontend regression; source history came from S1 and the binaries.
+
+PHASE 1 — EXACT FAILURE AND ROOT CAUSE
+The development script launched a RetinaGram process which stayed alive with a
+responsive titled Qt window. Returning to the PowerShell prompt did not mean the
+development GUI had exited. A controlled earlier dev process closed normally.
+The old packaged binary repeatedly exited with -1073741819 / 0xC0000005. Normal
+launch and screenshot mode both failed before displaying a window. Stdout and
+stderr were empty. Windows Application Error records identified Qt6Core.dll
+6.8.3, RVA 0xEAA78. Qt's Windows/image/style plugins were available and loaded.
+
+A temporary native debug-event helper captured the actual exception:
+  access violation, read address 0x8, RCX (QObject this) = 0
+  Qt6Core+0xEAA78: QObject::doSetProperty+0x28
+  caller RetinaGram+0x3311A
+Disassembly at that caller showed a loop over seven navigation pointers, loading
+a pointer and immediately calling the property setter, with no null-pointer
+branch. This corresponds to refreshHeader's active-property loop, called by
+buildShell during MainWindow construction. The frontend change had reduced the
+center navigation to six buttons and left navButtons_[Cloud] null, while the
+old executable still processed all PageCount=7 entries. It dereferenced the
+missing Cloud button before MainWindow construction could finish, show() could
+run, or QApplication::exec() could start. The navigation loop had the same risk.
+
+The development and packaged executables were different:
+  old package SHA256:
+  E5B4CA43BB2C3FE18B6BAE8F416FBEBD49BC341CA62D654CF6161EC73FAF7382
+  then-current development SHA256:
+  1FC2CDB9D87D04FA7298F35BFB2782D814975B3E223E5A099AA5444A37BE9269
+Qt6Core.dll was identical between the two environments. The current source
+already contained null checks in refreshHeader and navigate when this repair
+inspection began. Those checks were preserved, their reason clarified, and the
+correct development executable was redeployed. No arbitrary geometry, flags,
+hidden startup path, event-loop replacement, or DLL substitution was used.
+
+After that redeployment, before frontend work:
+  Release incremental build succeeded (initially no work to do).
+  Normal development script/direct launch stayed running and responsive.
+  Both development and package windows were visually inspected.
+  Normal packaged launch from build/package with Windows-only PATH stayed alive.
+  Packaged screenshot mode exited 0 and saved startup-after.png.
+The deployment warnings about translations/catalogs.json, dxcompiler/dxil and
+OpenSSL remained. Their presence after successful GUI/CUDA runs, and the captured
+null QObject stack before repair, establish that they did not cause this startup
+regression. A temporary debugger helper and evidence remain under build/validation
+and are excluded from the package.
+
+PHASE 2 — REFERENCE AND MISMATCHES
+Authoritative repository: https://github.com/Parthik880/Diabetic-Retinopathy-
+Branch: pc-gpu
+GitHub branch commit and clean local checkout both resolved to:
+6ad77846a720b3f7817206553050ae200c54fcce
+GitHub tree hashes were checked against the local files. The temporary rendered
+reference copy also matched all ten requested files byte-for-byte: index.css,
+App.tsx, TopAppBar, Capture, CloudSync, Analysis, Compare, Report, History and
+BatchAnalysis. The original checkout remained clean.
+
+Observed defects in the incoming native UI included:
+  28-point (~37 px) Capture heading wrapping to two lines.
+  Active Session and Study Date labels stretching vertically.
+  A maximum-width page placed on the left rather than centered.
+  Expanding image labels whose large initial pixmap size hints enlarged cards.
+  Unbounded preview dimensions and excessive capture body height.
+  Navigation child labels clipping Batch Analysis and overriding active colors.
+  Raw-looking eye selector, oversized status rectangles and uppercase state keys.
+  A protocol paragraph instead of three columns, and a wrapping protocol title.
+  Analyze placed after the scrolling page content instead of floating.
+  Screenshot page lookup using QPushButton::text(), which was now empty for
+  navigation buttons containing child labels.
+Cloud already used 155:100 stretch factors and 20 px gaps in both rows; these
+correct ratios were retained. Its centering, heading scale and back/header
+spacing were corrected. No duplicate Cloud center-navigation button was added.
+
+LAYOUT CHANGES AND PC-GPU VALUES
+Header: 72 px; centered inner maximum 1600 px; desktop horizontal padding 24 px.
+Brand: 44 px logo, 19 px Manrope title. Six center navigation buttons with 18 px
+Material Symbols icons, 14 px text, complete labels and white active-state text.
+Patient selector and the single Cloud Sync button remain on the right.
+Pages: centered 1280 px outer maximum with 24 px internal horizontal padding.
+Capture: 30 px Manrope title on one line, fixed text-sized Active Session badge,
+metadata underneath, compact Study Date/New Session/New Patient actions.
+Eye grid: 32 px gap; approximately 599–600 px cards at both desktop sizes.
+Eye header: 24 px padding and compact text-sized rounded status pills. State-key
+translation is presentation-only; stored result states and routing are unchanged.
+Eye body: 40 px padding, minimum 380 px. Empty capture target fixed at 320 px high.
+Loaded previews: fixed 320×320, centered, aspect-preserving image rendering.
+The native always-visible replacement/analysis buttons remain compact beneath
+the preview, rather than the reference's hover overlay. This keeps native actions
+accessible and shows the complete scan without changing image processing.
+Protocol: 32 px top margin, 24 px padding, three columns, 18 px single-line title.
+Analyze: 56 px high, 32 px horizontal padding, 32 px from the page viewport's
+right/bottom, raised above scrolling content, hidden outside Capture and disabled
+while busy. Existing analysis dispatch is reused.
+Cloud: centered 1280 px maximum, 1.55:1 rows with 20 px gaps, smaller Manrope card
+headings and a primary-colored 30 px page heading.
+Tokens retained: #005227, #006d36, #f6fbf3, #ffffff, #f0f5ed, #e5eae2,
+#181d18, #3f4940, #6f7a6f, #becabd, #ba1a1a and #ffdad6.
+Fonts remain bundled Manrope, Atkinson Hyperlegible Next and Material Symbols.
+An XPM chevron supplies consistent combo arrows without requiring QtSvg.
+Empty-state heading/description constraints were adjusted to show the full text.
+
+RETAINED FUNCTIONAL SCOPE
+No ModelManager, AnalysisController, decoder, thresholds, CUDA, preprocessing,
+postprocessing, report generation, batch handling or session serialization code
+was changed. No checkpoint was regenerated or converted. Cloud retains the
+existing native local counters, disabled sync settings and local-history action;
+it is not a new cloud integration or a pixel-perfect copy of the PostgreSQL-backed
+React screen's extra controls and illustrations. Full visual equivalence across
+every populated screen is not claimed. The requested layout defects were repaired.
+
+FILES MODIFIED / ADDED
+  src/ui/MainWindow.cpp — layouts, typography, icons, navigation accessibility,
+    null-entry explanation, floating action positioning and display-only pills.
+  include/ui/MainWindow.h — floating action pointer, update and resize event filter.
+  src/main.cpp — screenshot navigation by accessible name and optional --size.
+  scripts/deploy-windows.ps1 — reject stale native sources and verify copied EXE hash.
+  assets/chevron-down.xpm — native combo icon.
+  CMakeLists.txt — optional RETINAGRAM_BUILD_UI_TESTS target (default OFF).
+  tests/UiRegression.cpp — isolated Qt regression runner.
+  README.md — build/deploy, screenshot and regression-runner instructions.
+  specs/S2-startup_frontend_repair.txt — this new entry.
+run-dev.ps1, inference/app/image source and BENCHMARK.md were not modified.
+
+VISUAL EVIDENCE AND VIEWPORTS
+No reference video was attached in the latest repair files. The verified React
+source was rendered from the temporary copy instead. Browser CSS viewport sizes
+were explicitly set to 1426×952 and 1920×1080. DOM geometry confirmed the Capture
+wrapper was 1280 px wide at both sizes (left 70 / left 320 before scrollbar
+effects). The in-app browser's raster capture was clipped to 1420×948 and
+1683×1080 respectively; these captures were not resized to imply exact pixel
+equivalence. The native Qt runner produced exact 1426×952 and 1920×1080 canvases.
+The packaged Windows Capture screenshot is exactly 1426×952. The requested 1920
+packaged Cloud window was constrained by the physical work area to 1920×1061;
+the isolated native Cloud screenshot is exactly 1920×1080.
+
+Evidence under build/validation:
+  startup-crash-stack.txt, packaged-disassembly.txt, startup-failed.exe
+  startup-after.png
+  reference-capture-1426x952.png (1420×948 raster, 1426×952 CSS viewport)
+  reference-capture-1920css-1683x1080.png (1920×1080 CSS viewport)
+  reference-cloud-1426x952.png (offline layout fixture)
+  ui-regression/capture-empty-1426x952.png
+  ui-regression/capture-loaded-1426x952.png
+  ui-regression/capture-empty-1920x1080.png
+  ui-regression/page-0..6-1426x952.png
+  ui-regression/cloud-1920x1080.png
+  ui-regression/new-patient.png, new-session.png, image-import.png
+  package-final-1426x952.png, package-final-cloud-1920x1061.png
+Cloud reference data was supplied only to a temporary intercepted local browser
+request to render its unconfigured layout. Interception was cleared; no reference
+source, real database or patient records were modified.
+
+BUILD AND REGRESSION RESULTS
+MSVC x64 environment was initialized through VsDevCmd.bat before each CMake/Ninja
+build. Release builds succeeded. The optional Qt runner exercised the actual
+MainWindow and dialogs in a unique qttest/RetinaGramValidation/UISmoke-<pid> data
+directory, including a managed copy of the source test fundus image. It checked:
+  exposed top-level window, all seven page transitions, single Cloud action,
+  registration via the real modal and cancellation of another registration,
+  patient selector change, QFileDialog import, decoded 320×320 preview,
+  analysis-request signal and busy-state disabling,
+  New Session cancellation preserving the scan and confirmation clearing only
+  the isolated current scan while retaining test history,
+  exact native canvases at both requested sizes.
+Final log: ui-regression.txt; exit 0; 3 QtTest cases passed, 0 failed.
+Those three cases comprise init, the complete workflow, and cleanup; they are
+not three independent patients or inference accuracy cases. UI automation input
+was intermittently refused on minimized windows, so dialog/action coverage used
+this isolated Qt runner. Normal launch visibility was also inspected through
+Windows UI automation. QtTest/development screenshot warnings about offscreen
+fonts/size propagation are recorded in the test logs.
+
+Final normal development script launch: PID 6512, titled window, responsive.
+Final normal package launch: PID 18232, titled visible window, responsive with
+models ready. Both remained running well beyond initialization. Screenshot mode
+on the final packaged Windows executable exited 0 for Capture and Cloud. Cloud
+also succeeded with an unrelated TEMP working directory, verifying executable-
+relative assets/models. An attempted packaged screenshot with an inherited
+QT_QPA_PLATFORM=offscreen could not initialize that undeployed plugin; the test
+environment was corrected to normal Windows and both screenshot commands passed.
+That test setup failure is separate from the original null-navigation crash.
+
+Final development and packaged EXE SHA256 are identical:
+1E7DFBFF2DEED18356A53968F8F41EC0957A1EEC7167AE7116F7B311C1B9BE4B
+Deployment: 55 files, approximately 4.39 GiB. QtTest/debugger/test fixtures are
+not in the package. The extra production file is the small combo chevron asset.
+
+Final packaged CUDA smoke, Windows-only PATH, copied fundus input:
+  exit 0; state COMPLETE; quality Good; grade 3; analysis source original;
+  model initialization 1423 ms; analysis 4873 ms.
+Output and errors: startup-smoke/result.json, startup-smoke/inference.err.
+This is one execution smoke test, not a new accuracy or clinical validation.
+
+PRODUCTION MODEL SHA256 (SOURCE AND PACKAGE MATCH)
+iqa_int8.onnx
+0CEA57ADBD1CEB4CE39EE91D6937B02628D80C81F990CF561CEC3D5504377344
+nafnet_fp16.onnx
+16551EBC2B5585FF5CE3F671AA54637A772BFE6A9A4A758D1060BEB35A9430D8
+lesion_bf16_cam.pt
+8C7C95FF3084899CAEE1256B7A65F8E7F6B34DDBC84590A5FA7D8D285529FE77
+grade_bf16_cam.pt
+807CCC43F47A930B66E8A90345604BF0C8C6D4E0CFC9DC0CDAD39F15AE3E81C2
+
+Outcome: original startup access violation repaired and correct EXE deployed;
+requested desktop layout defects repaired; required UI, launch, screenshot and
+packaged inference checks passed with the evidence and limits recorded above.

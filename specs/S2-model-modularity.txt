@@ -1,0 +1,552 @@
+RETINAGRAM S2 - IMPLEMENTED MODEL MODULARITY
+Date: 2026-10-04
+Project: C:\Users\ADMIN\Music\Diabetic Retinopathy C++
+Branch: PCGPU.cpp
+Reference: read-only Diabetic-Retinopathy-, pc-gpu,
+6ad77846a720b3f7817206553050ae200c54fcce, also verified through GitHub API.
+Written after implementation, native comparison, build, CPU/CUDA and package validation.
+S1 and existing frontend specs are retained. The subsequent report-bundle request
+is separately documented in S4-report-export-bundle.txt.
+
+1. PURPOSE
+Allow compatible IQA, restoration, grade and lesion replacement through a flat
+artifact filename and explicit JSON contract, then restart, without rebuilding C++.
+Current production artifacts and native outputs are the regression baseline.
+No weights, calibration, precision, thresholds or default routing were intentionally
+changed. This is an implemented architecture record, not a proposed design.
+
+2. PREVIOUS ARCHITECTURE
+ModelManager.cpp was 867 lines: stage methods also embedded filenames, dimensions,
+normalization, precision, ONNX sessions, TorchScript modules, tuple interpretation,
+CAM and lesion components. Even compatible replacements required code edits.
+Its source, executable and matching ONNX DLLs were archived in
+build/validation/model-modularity/before and used for actual comparisons. The
+initial project files were untracked on an unborn Git branch; no fictitious Git
+baseline or committed diff was used.
+
+3. FINAL ARCHITECTURE
+Qt UI -> AnalysisController -> persistent worker -> ModelManager
+                                                     |
+                                       ModelConfig + ModelFactory
+                                                     |
+                  +----------------+-----------------+----------------+
+                  |                |                 |                |
+            IQualityModel  IRestorationModel   IGradingModel     ILesionModel
+                  |                |                 |                |
+           OnnxQualityModel OnnxRestorationModel TorchScript     TorchScript
+                                                GradingModel    LesionModel
+                                                                      |
+                                                            LesionPostprocessor
+                                                                      |
+                      typed results -> ResultSerialization -> legacy UI maps
+
+ModelManager is about 210 lines of initialization plumbing, routing, mutex protection,
+progress, timing and the UI result boundary. It contains no ONNX/Torch types,
+model filenames, resolutions, precision, tuple indices or channel mapping.
+Four typed unique_ptr interfaces own persistent adapters. Their shared private
+RuntimeContext keeps the ONNX environment alive. No Python/server bridge, model
+reload per eye or concurrent calls to shared sessions/modules were introduced.
+
+4. DIRECTORY STRUCTURE / CHANGE INVENTORY
+Created:
+ config/models.json
+ include/inference/ModelTypes.h
+ include/inference/ModelConfig.h
+ include/inference/ModelFactory.h
+ include/inference/Preprocessing.h
+ include/inference/ResultSerialization.h
+ include/inference/stages/LesionPostprocessor.h
+ src/inference/ModelConfig.cpp
+ src/inference/ModelFactory.cpp
+ src/inference/Preprocessing.cpp
+ src/inference/ResultSerialization.cpp
+ src/inference/stages/RuntimeSupport.h
+ src/inference/stages/RuntimeSupport.cpp
+ src/inference/stages/OnnxModels.cpp
+ src/inference/stages/TorchScriptGradingModel.cpp
+ src/inference/stages/TorchScriptLesionModel.cpp
+ src/inference/stages/LesionPostprocessor.cpp
+ tests/InferenceTests.cpp
+ scripts/compare_modularity.py
+ scripts/test-model-replacement.ps1
+ AGENTS.md (no project/ancestor AGENTS.md existed)
+ specs/S2-model-modularity.txt
+Modified for modularity:
+ include/inference/ModelManager.h, src/inference/ModelManager.cpp
+ src/main.cpp, CMakeLists.txt, scripts/deploy-windows.ps1, README.md
+The later report request also changes some shared app/build/docs files; see S4.
+
+5. COMPLETE VERSION 1 CONFIGURATION SCHEMA
+Root: exactly version=1, checkpoints_directory, iqa, restoration, grading, lesion.
+Unknown keys, wrong types and missing required fields fail. All four stages must
+have enabled=true. Disabled stages are rejected, not silently removed.
+Each stage requires enabled, adapter, model, input, output; grading/lesion require
+cam; lesion additionally requires classes and postprocessing. Adapter selection
+is explicit and stage-specific. Model must be an existing flat filename: no slash,
+backslash, colon, absolute path, '.' or '..'.
+
+Fixed input requires width/height integers 1..8192 with product <=16,000,000;
+channels=3, layout=NCHW, color=RGB, resize=pillow_bilinear; dtype float32, float16
+or bfloat16; normalization. Optional name selects an ONNX input. Torch inputs are
+positional. Fixed stages reject dynamic_spatial, accepted_dtypes and range.
+Normalization type is none, imagenet or mean_std. None cannot specify mean/std.
+Other types require three finite mean/std values, strictly positive std, absolute
+magnitude <=1e6. Both normalized variants use those explicit arrays; no hidden
+calibration/normalization defaults are applied.
+
+Restoration input requires dynamic_spatial=true, channels/layout/color as above,
+resize=none, normalization={type:none}, range=[0,1], nonempty accepted_dtypes
+containing supported floating types; fixed width/height/dtype are rejected.
+Output requires same_dimensions_as_input=true, range=[0,1], optional name.
+Actual ONNX boundary metadata chooses conversion. JSON does not alter internal
+graph precision, weights or quantization.
+
+IQA output: type logits/probabilities; activation softmax/none respectively;
+classes exactly a permutation of Good,Usable,Reject; optional ONNX output name.
+Grading output: type/activation as IQA; classes exactly strings '0'..'4' in raw
+artifact order; contract tensor or scores_and_activations. Tuple indices
+scores_index/activations_index are required, distinct integers 0 or 1. Tensor
+rejects indices. cam.enabled is required; enabled CAM requires the tuple.
+Lesion output: logits/sigmoid or probabilities/none, channels=4, and the same
+explicit tensor/two-tensor tuple contract. cam.enabled_by_default is required;
+cam.environment_override is a string, empty allowed. Enabled CAM or a nonempty
+override requires the tuple contract.
+
+Lesion classes require exactly MA,HE,EX,SE once each, in any array order. Each
+requires code, unique channel 0..3, threshold [0,1], minimum_area >=0 and
+merge_distance [0,64]. Entries are parsed into canonical order. Extra classes
+are unsupported. Postprocessing requires reference_size (0,8192], connectivity=8,
+minimum_mean_probability=.5, overlay_alpha=.45. The latter three are explicit
+invariants of this postprocessor version, not alternative configurable algorithms.
+The full committed production JSON is appended below.
+
+6. CURRENT PRODUCTION CONFIG
+IQA: onnx_classification, iqa_int8.onnx, 13,524,697 bytes; FP32 RGB/NCHW 224x224;
+ImageNet means .485/.456/.406 and std .229/.224/.225; logits; Good/Usable/Reject.
+The artifact remains hybrid QDQ INT8/FP32, not fully INT8 compute.
+Restoration: onnx_image_restoration, nafnet_fp16.onnx, 59,281,867 bytes; dynamic
+original size, RGB/255, no normalization; unchanged FP32 ONNX boundary and FP16
+internal graph. Config accepts FP16/FP32 boundaries.
+Grade: torchscript_classifier_cam, grade_bf16_cam.pt, 55,974,002 bytes; BF16 224x224,
+ImageNet; tuple scores 0/activations 1; five logits; FP32 softmax; CAM on.
+Lesion: torchscript_segmentation_cam, lesion_bf16_cam.pt, 9,177,225 bytes; BF16
+768x768, ImageNet; tuple scores 0/activations 1; FP32 sigmoid; MA/HE/EX/SE channels
+0/1/2/3; thresholds .5; areas .4/2/.4/4; merge distances 0/1/0/1; reference 768.
+Lesion CAM remains off unless RETINAGRAM_ENABLE_LESION_CAM=1.
+The previous user-directed BF16 exports are reused unchanged. Input dtype changes
+input tensors, not artifact parameter dtype. There is no automatic weight casting.
+
+7. QUALITY STAGE CONTRACT
+IQualityModel::infer(QImage) returns QualityResult: Quality enum, label, confidence,
+array<float,3> probabilities always Good/Usable/Reject. Adapter owns preprocessing,
+dtype, session and class mapping. Metadata requires one RGB NCHW input and one
+floating [1,3] output, compatible dimensions and dtype. Names are discovered from
+the single runtime input/output unless explicitly configured; no multi-output
+guessing occurs. Logits use the unchanged max-subtracted float softmax. Explicit
+probabilities are used directly and checked finite/[0,1]/sum within 1e-4 of one.
+Canonical argmax drives the route. IQA is called once per patient eye.
+
+8. RESTORATION STAGE CONTRACT
+IRestorationModel::infer(QImage) returns restored QImage and forward timing.
+No resize or ImageNet normalization. Input/output support dynamic spatial size;
+actual output must be [1,3,H,W] at original size. Symbolic metadata channel size
+is permitted and the small startup probe checks actual output. Current FP32
+boundary is preserved; other declared floating boundaries have explicit conversion.
+FP32 output is clamped [0,1], nearbyint(value*255) as before. ModelManager saves
+restored.png and passes this exact image to grade/CAM and lesions.
+
+9. GRADING STAGE CONTRACT
+IGradingModel::infer(image,directory) returns grade, confidence, canonical
+array<float,5> probabilities, CAM path, warnings and stage timings. Torch forward
+accepts one image; floating scores must be [1,5]. Output is explicitly a tensor
+or exactly two tensors at configured indices. Tuple activation is floating NCHW,
+batch one. Raw class ordering maps to grades 0..4. FP32 softmax is applied only
+to logits; explicit probabilities are checked and used directly. Current precision,
+autograd and CAM warning strings are preserved.
+
+10. LESION STAGE / CANONICAL TYPES
+ILesionModel::infer(image,directory,progress) owns runtime inference/optional CAM
+and supplies canonical borrowed FP32 CPU planes to the postprocessor. Scores must
+be [1,4,configured H,configured W]. Logits get FP32 sigmoid; explicit probabilities
+are checked finite/[0,1] and used directly. Upsampling to original size remains
+bilinear align_corners=false. Owner tensor lives until postprocessing returns.
+SegmentationProbabilities holds width/height and four std::span<const float>.
+LesionResult holds four LesionChannelResult values with canonical codes, full masks,
+raw/display regions and mask/probability/CAM paths; combined paths, warnings/timing.
+LesionRegion retains rank, bbox, integer center, centroid, original/model area,
+mean/max probability and source IDs. ResultSerialization produces existing UI keys.
+No runtime tensor is exposed in public interfaces.
+
+11. LESION POSTPROCESSING
+Pure CPU C++/Qt; no Torch/ONNX dependency in the postprocessor. Finite probabilities
+>= configured threshold produce full masks. Eight-neighbor components retain
+scan-order IDs. Minimum display area is
+max(1,ceil(minimum_area*original_width*original_height/reference_size^2)).
+Only retained components merge, using the original reference-coordinate distance
+and anisotropic pixel scaling/union rules. Bboxes, centroids, areas and probabilities
+retain the original arithmetic. Display groups require mean >=.5, sorted by area
+descending, mean descending, ID ascending. Full masks/raw regions remain independent
+of display filtering, merging or UI Top-K. Existing artifact basenames/heatmaps
+remain. Overlay is nearbyint(.55*image+.45*color), with MA (255,45,45), HE
+(255,126,34), EX (255,224,32), SE (35,210,255).
+
+12. FACTORY / CONTRACT VALIDATION CACHE
+ModelConfig validates adapter choice; ModelFactory creates private implementations
+and RuntimeContext. ONNX sessions are created as a pair; lesion then grade modules
+load in the original order. Options retain full graph optimization, two ORT threads,
+CUDA device zero. Metadata checks names/counts/shapes/dtype. Torch schema and an
+actual configured-dtype no-grad forward validate explicit outputs/spatial/classes.
+Restoration receives a black 32x32 probe. --validate-models forces these probes
+in a fresh native CLI process. IQA is checked through metadata, preserving once-per-
+eye patient IQA. Validation samples contain no patient data.
+
+Normal startup runs a short-lived sibling RetinaGram native CLI on cache misses,
+before loading the parent's persistent sessions/modules. Probe warm-up stays out
+of the patient process; the original stage order remains. This is initialization,
+not an inference bridge or model reload per image. Helper errors/stderr/timeout
+fail startup; ready is published only after all adapters load successfully.
+Successful markers are under AppLocalDataLocation/model-contracts. SHA256 includes
+artifact bytes, contract version v2, Torch version, stage, input size/dtype/dynamic
+flags/accepted dtypes, tuple indices, probability type and CPU/CUDA kind. Failed
+stage validation is never cached. Semantic class/channel JSON is parsed every time.
+Unwritable cache repeats validation rather than failing a valid model. Private
+helper arguments carry config/checkpoint/cache directories. The internal testing
+override RETINAGRAM_INTERNAL_CONTRACT_CACHE selects an isolated cache. A sibling
+native RetinaGram executable is required on cache misses.
+
+13. CUDA / CPU ROUTING
+Torch CUDA when available unless RETINAGRAM_FORCE_CPU is SET, preserving original
+presence-based behavior (even set '0' forces CPU; unset to enable CUDA). ORT CUDA
+also requires an available provider. On Ort CUDA construction failure, BOTH ONNX
+sessions are reset/recreated on CPU. Torch can remain CUDA in that mixed fallback.
+Forced CPU uses CPU for both runtimes with the same BF16 artifacts/input. This
+is initialization fallback, not a new analysis retry. ModelManager mutex serializes
+initialization and whole analyses. Good uses original -> grade/CAM -> lesions;
+Usable uses original -> restoration/save -> grade/CAM -> lesions on restored;
+Reject returns RECAPTURE_REQUIRED, grade -1, no downstream patient-stage call.
+
+14. GRAD-CAM
+Grade target uses configured raw index of the canonical predicted grade; weighted
+activation gradients/ReLU normalization/resizing remain unchanged. Save name is
+grade_gradcam.png. Optional lesion CAM uses each configured raw channel and the
+original full-mask masked objective/nearest target resize. A different CAM mechanism
+needs an adapter/export. Tuple validation checks activation shape/type, not every
+model's gradient topology; unusable/detached activations cause existing CAM warnings.
+Tensor-only grade requires CAM false; tensor-only lesion requires disabled CAM
+and empty environment override. No activation or CAM is synthesized.
+
+15. EXACT REPLACEMENT STEPS
+1. Copy a compatible artifact directly into the application's checkpoints/.
+2. Edit that stage's model filename and actual input/output/mapping contract in
+   config/models.json. Example grading.model: grade_bf16_cam.pt -> my_new_grade.pt.
+3. Run RetinaGram.exe --validate-models in its native DLL environment.
+4. Restart. Existing-adapter compatible replacements require no C++ build.
+IQA example: my_iqa.onnx, its input size/dtype/normalization and real output order.
+Restoration: my_restoration.onnx with declared accepted floating boundary types,
+dynamic same-size RGB contract. Grade: my_new_grade.pt with real grades 0..4 order.
+Lesions: my_lesions.pt; map MA=2,HE=0,EX=3,SE=1 if that is its actual raw order.
+UI remains canonical. Source users edit project files; packaged users edit package
+config/checkpoints. Deployment copies committed configuration for a new package.
+--model-info prints active config/artifacts/adapters/input/class/channel mapping.
+RETINAGRAM_MODEL_CONFIG chooses another JSON. Empty/missing/invalid explicit
+overrides fail. Checkpoints_directory is relative to the JSON, except explicit
+native constructor test overrides. Default config search climbs five levels from
+the executable, then checks working directory. Configuration loads once at startup.
+
+16. ADDING AN ADAPTER
+Implement its typed interface in a private runtime source. Define exact inputs,
+outputs, class/channel semantics and CAM capability. Add explicit parsing/selection
+in ModelConfig/ModelFactory, source/dependencies in RetinaGramInference, reuse
+preprocessing/postprocessor where appropriate. Add bad-contract/adaptation/routing/
+replacement/default-parity/CPU/CUDA/package tests. Update cache key/version when
+validation assumptions change. Keep backend headers out of public types/manager.
+
+17. WHAT CONFIG CAN CHANGE
+Compatible filename; fixed size; supported input dtype; normalization arrays/none;
+logits vs probabilities; tensor vs two-tensor tuple/indices; canonical class/channel
+order; supported CAM settings; class thresholds/area/merge/reference settings.
+Input dtype does not convert weights. Changing thresholds changes behavior and
+was NOT done to production defaults in this task.
+
+18. WHAT STILL NEEDS CODE
+Other runtimes/layouts/colors/resamplers; additional/non-image inputs; new output
+structures/tasks/clinical classes; another CAM mechanism; segmentation spatial
+contract outside this adapter. New classes also affect typed arrays/UI/reporting.
+No arbitrary architecture/task guessing, runtime plugin or dynamic tensor system.
+
+19. VALIDATION ACTUALLY RUN
+VS2022 x64 Release clean build succeeded; reliable incremental builds linked app,
+static inference library and test runners. Third-party LibTorch warnings remain.
+InferenceTests: 12 passed, 0 failed: production config, missing model, IQA class
+count, missing std, invalid/reordered lesion channels, three routes with IQA once,
+restored input forwarding, threshold equality/8-connectivity/full-mask separation.
+Forced --validate-models passed CUDA and CPU, all four stages OK.
+Six real GPU and two CPU before/after cases compared, section 20.
+Temporary renamed grade artifact selected by JSON environment override;
+--model-info and --validate-models passed, executable SHA256 unchanged, temporary
+weight copy removed. No C++ edit/export was used for replacement.
+Isolated cache on Reject: startup miss/hit 12,484/5,479 ms; both recapture, grade -1.
+UI runner final 7 passed. Functional runner final 4 passed; bundle runner 9 passed
+after the subsequent export task. Functional waits use the final controller summary,
+not stale widgets/stage labels. No production Batch code changed.
+Package model validation, visible launch and clean-system-PATH CUDA Usable inference
+passed (grade 3, startup 2,944 ms, analysis 12,452 ms).
+
+20. PARITY - NUMBERS AND LIMITS
+Seven of eight comparisons have EXACT normalized result values and PNG pixels:
+GPU 0,1,2,3,5 and CPU Good/Usable. Only UUID paths/timings are excluded. All IQA
+classes/confidences match exactly. GPU grades 3,3,0,2,3,-1; CPU both grade 3.
+Both CPU full JSON/masks/restoration/CAM are exact.
+GPU Usable case 4 is NOT bitwise exact: grade confidence .9749262928962708 ->
+.9745547771453857, delta -.00037151575088500977. Grade 3 and original comparison
+counts MA13/HE30/EX1/SE0 unchanged. Restoration max uint8 difference 1, MAE
+.0011952718098958333, PSNR 77.35613683939536 dB, 1,401 changed pixels. Mask IoUs:
+MA .9850746268656716, HE .977325312355391, EX/SE 1. CAM and region coordinates/
+probabilities also differ downstream; no claim that they are exact. The strict
+script correctly exits nonzero and records every result/coordinate difference.
+Two fresh ORIGINAL-executable repeats also vary: restored max difference 1;
+MAEs .0011732313368055555/.0011723836263020833; PSNRs 77.43696706474176/
+77.44010616485605. Original confidence deltas +.0011222362518310547 and
++.000014066696166992188. Its MA becomes 12, HE 32/29; HE mask IoUs .9770248317475052/
+.9797674418604652. The unchanged GPU FP16 path has observed repeat variability
+which can cross BF16 thresholds. Refactored differences are similar in magnitude.
+No precision/rounding/determinism change was introduced to force equality. This
+is documented variability, not strict 8/8 parity or a new clinical tolerance.
+Evidence: parity.json, gpu-usable-variability.json, before/usable_repeat_*.json.
+
+21. PERFORMANCE
+Three runs per case; warm mean is runs 2/3 including visualization/files. Local
+observations, not statistical guarantees; same inputs/artifacts/runtime libraries.
+                       Good before -> after      Usable before -> after
+Startup ms             2264 -> 2456               2429 -> 2301
+Run 1 ms               4301 -> 4306               13308 -> 12846
+Runs 2,3 ms            2409,2918 -> 2361,2736      895,887 -> 926,865
+Warm mean ms           2663.5 -> 2548.5            891 -> 895.5
+Idle RAM MiB           451.21 -> 452.94            451.98 -> 452.82
+Peak RAM MiB           1813.47 -> 1819.61          2235.71 -> 2224.41
+GPU used MiB           1726.5 -> 1726.5            2120.5 -> 2120.5
+GPU is total-device used-memory snapshot after last run, including other allocations,
+not isolated process VRAM or transient peak. CPU Good startup 1992 -> 2736 ms,
+analysis 34018 -> 33081; CPU Usable startup 2026 -> 2833, analysis 35851 -> 34290.
+Caching avoids an extra full lesion forward each startup. First validation of a
+new artifact/device/cache takes longer, especially CPU. --validate-models populates
+successful markers before restart. Evidence: performance.json, benchmark JSONs.
+
+22. PACKAGING
+Deployer reads config/models.json, requires portable version 1 and ../checkpoints,
+copies it and only configured unique filenames into one flat checkpoints/ next
+to RetinaGram.exe. Native DLL closure/Qt plugins/assets/dynamic CUDA components
+remain. No Python/Node/test runner shipped. Final package: 57 files, about 4.39 GiB,
+exactly four production artifacts. App/config hashes match development copies.
+Final app SHA256: 95D81171FCC02DBA3B9F932FD5D8DFBEB91ABFED1C0ACFA6CB80D8CA8ED51620.
+Visible RetinaGram GPU window observed and closed cleanly; test identities isolated
+from production patients. Clean-PATH validation/inference succeeded. Subsequent
+packaged saved-result report exports also work without model loading.
+
+23. KNOWN LIMITATIONS
+Only the four explicit image tasks/contracts are supported. Probability/tensor-only
+alternatives are implemented but production comparison exercises current tuple/
+logit artifacts; replacements need representative accuracy/CAM checks. CPU BF16
+is slow. Initial validation can take seconds/tens of seconds and needs the native
+sibling executable. Cache validates contracts, not clinical accuracy, every spatial
+size or gradient topology. GPU Usable is not bitwise reproducible in the original
+baseline. Four stages remain required; canonical UI classes/display invariants fixed.
+
+24. FUTURE GUIDANCE
+Keep config the deployment source of truth. Never reintroduce filenames, precision,
+layout/tuple assumptions or runtime calls into ModelManager. Update explicit
+adapter contracts/tests together. Preserve defaults, compare actual archived outputs,
+keep full masks separate from display filtering, state timing/memory limitations,
+verify native package and write specs after implementation/validation.
+
+APPENDIX A - COMPLETE COMMITTED PRODUCTION models.json
+{
+  "version": 1,
+  "checkpoints_directory": "../checkpoints",
+  "iqa": {
+    "enabled": true,
+    "adapter": "onnx_classification",
+    "model": "iqa_int8.onnx",
+    "input": {
+      "width": 224,
+      "height": 224,
+      "channels": 3,
+      "layout": "NCHW",
+      "dtype": "float32",
+      "color": "RGB",
+      "resize": "pillow_bilinear",
+      "normalization": {
+        "type": "imagenet",
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "output": {
+      "type": "logits",
+      "activation": "softmax",
+      "classes": [
+        "Good",
+        "Usable",
+        "Reject"
+      ]
+    }
+  },
+  "restoration": {
+    "enabled": true,
+    "adapter": "onnx_image_restoration",
+    "model": "nafnet_fp16.onnx",
+    "input": {
+      "dynamic_spatial": true,
+      "channels": 3,
+      "layout": "NCHW",
+      "color": "RGB",
+      "resize": "none",
+      "normalization": {
+        "type": "none"
+      },
+      "range": [
+        0,
+        1
+      ],
+      "accepted_dtypes": [
+        "float16",
+        "float32"
+      ]
+    },
+    "output": {
+      "same_dimensions_as_input": true,
+      "range": [
+        0,
+        1
+      ]
+    }
+  },
+  "grading": {
+    "enabled": true,
+    "adapter": "torchscript_classifier_cam",
+    "model": "grade_bf16_cam.pt",
+    "input": {
+      "width": 224,
+      "height": 224,
+      "channels": 3,
+      "layout": "NCHW",
+      "dtype": "bfloat16",
+      "color": "RGB",
+      "resize": "pillow_bilinear",
+      "normalization": {
+        "type": "imagenet",
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "output": {
+      "type": "logits",
+      "contract": "scores_and_activations",
+      "scores_index": 0,
+      "activations_index": 1,
+      "classes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "activation": "softmax"
+    },
+    "cam": {
+      "enabled": true
+    }
+  },
+  "lesion": {
+    "enabled": true,
+    "adapter": "torchscript_segmentation_cam",
+    "model": "lesion_bf16_cam.pt",
+    "input": {
+      "width": 768,
+      "height": 768,
+      "channels": 3,
+      "layout": "NCHW",
+      "dtype": "bfloat16",
+      "color": "RGB",
+      "resize": "pillow_bilinear",
+      "normalization": {
+        "type": "imagenet",
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "output": {
+      "type": "logits",
+      "contract": "scores_and_activations",
+      "scores_index": 0,
+      "activations_index": 1,
+      "channels": 4,
+      "activation": "sigmoid"
+    },
+    "classes": [
+      {
+        "code": "MA",
+        "channel": 0,
+        "threshold": 0.5,
+        "minimum_area": 0.4,
+        "merge_distance": 0
+      },
+      {
+        "code": "HE",
+        "channel": 1,
+        "threshold": 0.5,
+        "minimum_area": 2,
+        "merge_distance": 1
+      },
+      {
+        "code": "EX",
+        "channel": 2,
+        "threshold": 0.5,
+        "minimum_area": 0.4,
+        "merge_distance": 0
+      },
+      {
+        "code": "SE",
+        "channel": 3,
+        "threshold": 0.5,
+        "minimum_area": 4,
+        "merge_distance": 1
+      }
+    ],
+    "cam": {
+      "enabled_by_default": false,
+      "environment_override": "RETINAGRAM_ENABLE_LESION_CAM"
+    },
+    "postprocessing": {
+      "reference_size": 768,
+      "connectivity": 8,
+      "minimum_mean_probability": 0.5,
+      "overlay_alpha": 0.45
+    }
+  }
+}
+

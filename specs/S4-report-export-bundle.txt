@@ -1,0 +1,313 @@
+RETINAGRAM S4 - IMPLEMENTED REPORT EXPORT BUNDLES
+Date: 2026-10-04
+Project: C:\Users\ADMIN\Music\Diabetic Retinopathy C++
+Branch: PCGPU.cpp
+Written after implementation, passing tests, actual packaged exports and PDF review.
+S3-analysis_batch_fidelity.txt already exists, so S4 is the next spec number.
+All earlier specs, including S1 and S2-model-modularity.txt, are retained.
+
+1. REASON / ROOT CAUSE
+Native save slots directly called ScreeningReport::writePdf and wrote only one
+PDF into the destination. History Download had another PDF-only filename. Save
+Both dispatched two independent single saves. There was no shared bundle root,
+portable results.json, canonical artifact copying or persisted exported PDF path.
+This implements the pc-gpu bundle in the export layer. No IQA, NAFNet, grading,
+lesion, model JSON, precision, thresholds, postprocessing, routing or Grad-CAM
+code was changed for this report request.
+
+2. AUTHORITATIVE PC-GPU REFERENCE
+Read directly from the read-only sibling on pc-gpu:
+ backend/utils/reporting.py: sanitize_windows_name, create_report_root,
+                            export_report_bundle, PDF integration
+ backend/app/main.py: create_report_bundle, create_bilateral_report_bundle
+ frontend/src/api.ts: saveReport, saveBothReports, History payloads
+ frontend/src/components/ReportScreen.tsx: eligibility and root-folder notices
+Local HEAD and GitHub pc-gpu commit:
+6ad77846a720b3f7817206553050ae200c54fcce.
+Reference deliberately exports RGB JPEG quality 95/optimized, restoration, overlay,
+full masks, structured JSON and PDF. Bilateral export has one shared root. It
+does not copy probability/CAM/intermediate artifacts. Native preflight and rollback
+also meet this task's explicit failure-atomicity requirements.
+
+3. C++ EXPORTER ARCHITECTURE / FILE INVENTORY
+Created:
+ include/reporting/ReportBundle.h
+ src/reporting/ReportBundle.cpp
+ tests/ReportBundleTests.cpp
+ specs/S4-report-export-bundle.txt
+Modified:
+ include/app/AnalysisController.h, src/app/AnalysisController.cpp
+ include/ui/MainWindow.h, src/ui/MainWindow.cpp
+ src/ui/ReportPage.cpp, src/main.cpp, CMakeLists.txt
+ tests/FunctionalSmoke.cpp, README.md, AGENTS.md
+ScreeningReport.h/.cpp and the existing PDF drawing layout are unchanged.
+
+ReportExportResult: rootFolder, eyeFolder, reportPath, relative files.
+BilateralReportExportResult: rootFolder, per-eye results, reportPaths, aggregate files.
+exportReportBundle delegates to exportReportBundles with one saved result. They
+are synchronous export operations, throwing descriptive std::runtime_error on
+failure, with no model/inference dependency. Preflight checks all requested eyes,
+sources and structured data before root allocation.
+
+4. ROOT NAME / PATH SAFETY
+Existing user-selected destination is required and canonically resolved by
+QFileInfo/QDir. Missing destinations fail; arbitrary parent directories are not
+created. Root: RetinaGram_<SanitizedPatientName>_<YYYYMMDD_HHMMSS> in local time.
+Sanitization removes Windows < > : " / backslash | ? *, controls and whitespace;
+trims dots/spaces, caps 64 UTF-16 units without a trailing half surrogate and
+falls back to Patient. Values cannot introduce path traversal. Exclusive mkdir
+allocates the root, with _2, _3, etc. for collisions including concurrent exports.
+Existing roots/files are preserved and never removed by export cleanup.
+
+5. EYE DIRECTORY
+OS -> Left_OS; OD -> Right_OD. Other values fail. Each eye has a new subfolder,
+PDF and JSON. Save Both appears only with both COMPLETE retained analyses and
+allocates one root. Generic helpers accept one completed eye but validate every
+requested eye; duplicate eyes and mixed patient IDs/names fail before writing.
+
+6. EXACT DELIBERATE FILES
+Per eye:
+ report.pdf
+ results.json
+ original_fundus.jpg
+ restored_fundus.png when actual restoration source is present
+ lesion_overlay.png when combined overlay is present
+ masks/microaneurysm.png when MA source is present
+ masks/hemorrhage.png when HE source is present
+ masks/hard_exudate.png when EX source is present
+ masks/soft_exudate.png when SE source is present
+Masks directory exists when a mask is present. Current completed native analyses
+have all four, including valid all-zero masks. No recursive run-directory copy,
+probability map, CAM, selected-region image, UI screenshot or intermediate file.
+Manifest is sorted and relative to the root, including eye directory prefix.
+
+7. ORIGINAL / RESTORATION / OVERLAY
+Original image_path is decoded through ImageDecoder, converted RGB888 and saved
+by QImageWriter as an actual JPEG at quality 95 with optimized write. PNG/TIFF
+files are never just renamed. No overlay or CAM is baked into this original.
+restored_image_path is copied unchanged to restored_fundus.png, preserving the
+actual image used downstream. Good has no restored file or reference. An analysis
+marked restored without that required source fails. Nonempty declared artifact
+paths must exist/decode; empty optional paths are omitted. Combined lesion overlay
+is copied byte for byte, not regenerated during export.
+
+8. FULL MASK MAPPING
+MA -> masks/microaneurysm.png; HE -> masks/hemorrhage.png;
+EX -> masks/hard_exudate.png; SE -> masks/soft_exudate.png.
+Sources are lesion_mask_paths, the full pipeline masks before display filtering,
+merging, Top-K or selection. Copies are byte-for-byte identical. Detection uses
+the existing ScreeningReport::Data full-mask/structured-data logic. Region_count
+is the saved native count. No new threshold or inference is applied and zero
+display count does not falsely imply an empty full mask.
+
+9. results.json SCHEMA
+QJsonDocument/QSaveFile write indented UTF-8 JSON:
+ report_id: retained run_id, native UUID or stable legacy local identifier
+ patient: available name,id,age,gender,eye,scan_datetime,referring_doctor
+ image_quality: class,confidence,probabilities
+ dr_grading: grade,label,confidence,probabilities
+ lesions: MA/HE/EX/SE -> label,detected,region_count,mask_file
+ inference_device: retained device_name/device
+ pipeline_state: retained COMPLETE
+ analysis_source: retained original/restored where available
+ original_image_file: original_fundus.jpg
+ restored_image_file: restored_fundus.png or null
+ generated_at: ISO date/time with milliseconds and local UTC offset
+Grade labels 0..4: No diabetic retinopathy, Mild NPDR, Moderate NPDR, Severe NPDR,
+Proliferative DR. Lesion labels: Microaneurysms, Hemorrhages, Hard Exudates,
+Soft Exudates. Confidence/probability values are copied without renormalizing.
+Portable relative mask references have forward slashes. Optional file references
+are null when absent; temporary absolute run paths are not serialized. Legacy
+snapshots without evidence of full-mask presence/absence use detected=null, matching
+the PDF's Unavailable status rather than inventing false absence. Non-finite
+floating structured values fail before any report root is created.
+
+10. SINGLE SAVE / PDF
+ReportPage uses the existing folder picker; AnalysisController::saveReport calls
+exportReportBundle with MainWindow::reportData. History Save Eye/Download uses
+the same helper on the retained snapshot. After artifacts and JSON are written,
+a copy of report data is adapted to the bundle's image/mask paths and passed to
+the unchanged A4 writePdf renderer. PDF and JSON share metadata/analysis results.
+Success notice identifies the report ROOT, not merely its PDF.
+
+11. BILATERAL SAVE
+ReportPage emits one bothReportsRequested(sessionId,destination) signal. Controller
+reads both saved contexts and calls exportReportBundles once. Requested eyes must
+be COMPLETE and share patient identity. One root contains Left_OS/Right_OD with
+independent conditional restoration. Both JSON/PDFs use one generation instant.
+A fatal write in either eye removes the newly allocated shared root, preventing
+partial success from being reported.
+
+12. HISTORY / SESSION INTEGRATION
+After successful GUI export, rememberReportPath records exported report.pdf in the
+appropriate eye's result.report_path. Existing History is matched by its established
+session ID; normal current-patient export matches patient ID and retained run ID.
+Current patient/active History preview maps update when they reference that run.
+Scan timestamps and History session IDs are unchanged; no duplicate session is
+created. The shared session-ID helper preserves the existing patient-ID/savedAt/
+image-path SHA256 algorithm. saveState returns checked QSaveFile write/commit status.
+If bundle success is followed by failed History persistence, UI identifies that
+failure and gives the saved root. Damaged session storage remains protected by
+the existing stateLoadError guard.
+History View Reports keeps its saved-analysis preview behavior. Download exports
+a bundle, updates the saved PDF path and does not depend on running inference.
+Tests locate/read the actual exported PDF through session.json's saved path.
+
+13. FAILURE HANDLING / ATOMICITY
+Preflight completion, eye, original decoding, grade, requested artifact existence/
+decoding, patient identity and finite JSON before root allocation. Check every
+mkdir, JPEG write, copy, JSON write/commit and PDF result. Descriptive examples:
+Selected report destination does not exist; Original retinal image is unavailable;
+Cannot copy lesion overlay; Cannot write results.json; Cannot save report.pdf.
+Fatal failure releases file handles and removes ONLY the new allocated root. If
+cleanup fails, the error includes the incomplete root path. Existing exports and
+inference sources are never removed. This is operation rollback, not recovery
+from forced process termination/crash or filesystem transactions. No partial
+bundle write is returned as a successful export.
+
+14. ACTUAL TESTS / PDF QA
+VS2022 x64 reliable Release build succeeded for application/test runners.
+ReportBundleTests final 9 passed, 0 failed, real saved Good/Usable with Windows Qt:
+valid PDF, actual JPEG/size, exact confidence/probability values, readable JSON,
+portable filenames, artifact/mask bytes and dimensions, bilateral common root,
+conditional restoration, no CAM/probability extras, same-second _2 collision,
+full-mask detection independent of zero display counts, missing/invalid sources,
+missing destination, duplicate/incomplete eyes, NaN rejection without a new root.
+UiRegression final 7 passed, including damaged History store preservation.
+FunctionalSmoke final 4 passed in 31,166 ms: actual folder-picker Save Right Eye
+and Save Both produce nested bundles; Left Eye Usable retains restoration;
+History Download persists the exported PDF path in session.json. Real batch
+inference, both original output-folder modes, pause/resume/cancel remain verified.
+The test now waits for the final visible controller summary rather than a stage
+label or pending-deletion widget; second folder mode completes before a separate
+cancellation run. Production Batch code was not changed.
+Good and Usable Windows-generated PDFs were rendered with Poppler and inspected:
+one-page A4 typography/images and conditional restored-image column are preserved.
+Qt offscreen's synthetic font backend produces unsuitable PDF typography in its
+test artifacts; Windows-generated development/package PDFs are the visual evidence.
+
+15. PACKAGED APP / CLI / ACTUAL OUTPUTS
+Deployer produced build/package: 57 files, about 4.39 GiB, final executable/config,
+four configured checkpoints, native DLLs/plugins/assets; no Python/Node/test runner.
+Development/package app SHA256 matches:
+95D81171FCC02DBA3B9F932FD5D8DFBEB91ABFED1C0ACFA6CB80D8CA8ED51620.
+With PATH limited to Windows system directories, packaged Good, Usable and bilateral
+bundle CLI exports all exited 0. They also succeeded with RETINAGRAM_MODEL_CONFIG
+pointing to a deliberately unavailable file, proving saved-result export does not
+initialize/re-run models. Package validation/CUDA Usable inference passed separately.
+Visible RetinaGram GPU window observed (handle 3672926), closed cleanly; packaged
+Report screenshot and Good/Usable PDFs inspected.
+CLI:
+ --export-report-bundle <native-result.json> <existing-parent> <patient.json> <OS|OD>
+ --export-both-bundles <left-result.json> <right-result.json> <existing-parent> <patient.json>
+Returns root/PDF path(s)/relative manifest; export failures exit 5. These early
+returns create no ModelManager/AnalysisController and have no GUI session to update.
+The existing --export-report PDF-only utility is retained. Batch semantics unchanged.
+
+Final package-generated outputs and actual Usable JSON follow below.
+
+GOOD: C:\Users\ADMIN\Music\Diabetic Retinopathy C++\build\validation\report-bundles\final-packaged\RetinaGram_Birds_20261004_202307
+  Right_OD/lesion_overlay.png
+  Right_OD/masks/hard_exudate.png
+  Right_OD/masks/hemorrhage.png
+  Right_OD/masks/microaneurysm.png
+  Right_OD/masks/soft_exudate.png
+  Right_OD/original_fundus.jpg
+  Right_OD/report.pdf
+  Right_OD/results.json
+USABLE: C:\Users\ADMIN\Music\Diabetic Retinopathy C++\build\validation\report-bundles\final-packaged\RetinaGram_Birds_20261004_202308
+  Left_OS/lesion_overlay.png
+  Left_OS/masks/hard_exudate.png
+  Left_OS/masks/hemorrhage.png
+  Left_OS/masks/microaneurysm.png
+  Left_OS/masks/soft_exudate.png
+  Left_OS/original_fundus.jpg
+  Left_OS/report.pdf
+  Left_OS/restored_fundus.png
+  Left_OS/results.json
+BILATERAL: C:\Users\ADMIN\Music\Diabetic Retinopathy C++\build\validation\report-bundles\final-packaged\RetinaGram_Birds_20261004_202309
+  Left_OS/lesion_overlay.png
+  Left_OS/masks/hard_exudate.png
+  Left_OS/masks/hemorrhage.png
+  Left_OS/masks/microaneurysm.png
+  Left_OS/masks/soft_exudate.png
+  Left_OS/original_fundus.jpg
+  Left_OS/report.pdf
+  Left_OS/restored_fundus.png
+  Left_OS/results.json
+  Right_OD/lesion_overlay.png
+  Right_OD/masks/hard_exudate.png
+  Right_OD/masks/hemorrhage.png
+  Right_OD/masks/microaneurysm.png
+  Right_OD/masks/soft_exudate.png
+  Right_OD/original_fundus.jpg
+  Right_OD/report.pdf
+  Right_OD/results.json
+
+ACTUAL USABLE results.json:
+{
+    "analysis_source": "restored",
+    "dr_grading": {
+        "confidence": 0.9745547771453857,
+        "grade": 3,
+        "label": "Severe NPDR",
+        "probabilities": [
+            2.7687639885698445e-05,
+            1.499034425478385e-07,
+            0.024781707674264908,
+            0.9745547771453857,
+            0.0006357306847348809
+        ]
+    },
+    "generated_at": "2026-10-04T20:23:08.854+05:30",
+    "image_quality": {
+        "class": "Usable",
+        "confidence": 0.7171602249145508,
+        "probabilities": [
+            0.04528719559311867,
+            0.7171602249145508,
+            0.23755264282226562
+        ]
+    },
+    "inference_device": "CUDA",
+    "lesions": {
+        "EX": {
+            "detected": true,
+            "label": "Hard Exudates",
+            "mask_file": "masks/hard_exudate.png",
+            "region_count": 1
+        },
+        "HE": {
+            "detected": true,
+            "label": "Hemorrhages",
+            "mask_file": "masks/hemorrhage.png",
+            "region_count": 30
+        },
+        "MA": {
+            "detected": true,
+            "label": "Microaneurysms",
+            "mask_file": "masks/microaneurysm.png",
+            "region_count": 13
+        },
+        "SE": {
+            "detected": false,
+            "label": "Soft Exudates",
+            "mask_file": "masks/soft_exudate.png",
+            "region_count": 0
+        }
+    },
+    "original_image_file": "original_fundus.jpg",
+    "patient": {
+        "age": 58,
+        "eye": "OS",
+        "gender": "Female",
+        "id": "RG-EXPORT-1",
+        "name": "Birds",
+        "scan_datetime": "2026-10-04T09:15:00+05:30"
+    },
+    "pipeline_state": "COMPLETE",
+    "report_id": "403bd50f-e152-49fa-bb3b-d7aad255b7ec",
+    "restored_image_file": "restored_fundus.png"
+}
+
+Evidence: build/validation/report-bundles/{bundle-tests.txt,ui-tests.txt,functional-tests.txt,deploy.log,package-*-export.json,package-validation.json,package-good-pdf-1.png,package-usable-pdf-1.png,package-report.png}.

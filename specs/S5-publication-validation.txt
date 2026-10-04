@@ -1,0 +1,98 @@
+RetinaGram native source publication preparation — 2026-10-04
+
+Scope
+Prepare PCGPU.cpp as a native C++20 / Qt 6 branch with ancestry from pc-gpu.
+Preserve production model bytes and inference behavior. The separate reference
+checkout remains read-only except for authorized fetch/worktree Git metadata.
+
+Repository contents
+Keep src, include, config, assets, scripts, tests, resources documentation,
+migration specs, README, AGENTS, BENCHMARK, NOTICE, and portable Graphify output.
+Commit four production model files as ordinary Git blobs with size/SHA256 in
+checkpoints/MODEL_MANIFEST.json. Redundant source .pth and experimental ONNX
+weights are excluded. No package, runtime dependency binaries, patient inputs,
+sessions, raw validation output, copied reference frontend or toolchain is
+included in the branch.
+
+Local cleanup limitation
+The original native tree's generated build directories and redundant weights
+were audited. Automatic approval review rejected the requested physical
+deletions with "blocked by policy" and no more specific reason. They remain
+locally ignored. The publishing worktree was created without checking out the
+old implementation and populated by an explicit copy of publishable files;
+it does not contain those original generated directories. New validation build
+and package directories created there are also ignored. This is repository
+cleanup, not a claim that the original local files were physically removed.
+
+Development portability
+README documents generic SDK paths, model installation, clone/configure/build,
+launch/deployment, reports, batch, storage, CLI, troubleshooting and limitations.
+AGENTS preserves architectural and numerical contracts and the read-only
+reference policy. Offline scripts use explicit reference/checkpoint paths and
+a six-image validation manifest rather than a developer's private filenames.
+The runtime helper resolves dependencies from the selected CMake cache and
+copies that SDK's ORT DLLs beside the development executable. This corrected
+an initial DLL lookup that selected an older installed ONNX Runtime 1.17.1.
+Deployment does not compile; it packages the selected built executable and
+runtime dependency closure.
+
+The functional report test formerly assumed every supplied Good fixture had
+grade 2. It now checks the independently enumerated canonical label for the
+fixture's actual grade, with a range assertion. No production C++ pipeline,
+model configuration, precision, threshold or preprocessing was changed.
+
+Fresh validation
+VS2022 x64 / MSVC 14.44, Qt 6.8.3, CMake 3.31, Ninja, Torch 2.8 CUDA 12.8,
+CUDA Toolkit 12.9, ONNX Runtime GPU 1.26, RTX 3060 12 GiB.
+Fresh Release configure and full build succeeded. PowerShell parser checks and
+Python syntax checks succeeded. Four model contract checks succeeded after
+the ORT DLL selection fix.
+
+Real CUDA smoke cases: Good -> COMPLETE (grade 0 on one input and grade 3 on
+the UI fixture), Usable -> COMPLETE grade 3 through restoration, and Reject ->
+RECAPTURE_REQUIRED with no downstream grade. These are routing checks on a
+small local sample, not clinical validation or a new accuracy benchmark.
+
+CTest inference: 1/1 executable passed.
+Qt UI regression: 7 passed, 0 failed.
+Qt report bundle tests: 9 passed, 0 failed.
+Qt functional smoke: 4 passed, 0 failed, including GUI single/bilateral report
+actions, History, real batch inference, folder modes and Pause/Resume/Cancel.
+Config-selected renamed grading artifact worked with unchanged executable hash.
+
+Development visible launch succeeded. Packaged screenshot mode completed for
+Capture, Analysis, Compare, Report, History, Batch Analysis and Cloud Sync at
+1426x952. Isolated UI runner also uses a 1920x1080 canvas. Screenshots of Analysis,
+Report and Capture were visually inspected; Capture can show asynchronous model
+initialization when screenshot mode fires.
+
+Deployment produced 60 files, about 4.39 GiB, excluded from Git. Development and
+package executable hashes matched. With PATH limited to Windows system folders,
+packaged model validation and real CUDA Usable analysis succeeded. Good/Usable
+report bundles exported with an intentionally invalid model configuration,
+proving export does not initialize inference. Good had 8 files; Usable had 9
+including the restored fundus. Both Windows-platform PDFs rendered as readable
+single-page A4 reports. Offscreen Qt tests are not PDF typography evidence.
+
+Graph and publication
+Graphify uses the official graphifyy 0.9.53 library for source AST extraction,
+host-agent semantic document extraction, clustering, graph/report export and
+the official CLI for interactive HTML. Its C++ parser reports partial extraction
+for RuntimeSupport.cpp, FunctionalSmoke.cpp and UiRegression.cpp despite their
+successful native compilation. Final counts/diagnostics are recorded in
+graphify-out/GRAPH_REPORT.md; host semantic token usage is unavailable.
+
+Only portable graph.json, GRAPH_REPORT.md, graph.html and graph README are
+published; caches, absolute root/interpreter state, cost and temporary extraction
+files are ignored. Existing migration specs remain intact. The intended push
+is exclusively PCGPU.cpp, with no force push or default/reference branch change.
+The actual publication commit and remote state are verified separately after
+commit/push; this preparation record does not assert a future push succeeded.
+
+Retained limitations
+Local samples are small. Sparse BF16 lesion masks can differ from FP32, including
+zero EX overlap in historical cases. Strict modularity comparison was exact
+in 7/8 cases; GPU Usable varied by one restored uint8 level, with downstream
+changes and variation also present in repeated original native runs. Device
+memory snapshots include other allocations and do not establish process peaks.
+Cloud Sync remains disconnected. Broader representative validation is required.

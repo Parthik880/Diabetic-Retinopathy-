@@ -1,0 +1,198 @@
+RetinaGram native Qt frontend fidelity pass — 2026-10-04
+Project: C:\Users\ADMIN\Music\Diabetic Retinopathy C++
+
+REFERENCE AND SCOPE
+-------------------
+S1-first_draft.txt was read in full during the native repair work; this pass
+continued from that history and preserved S1 and S2. The authoritative reference
+is pc-gpu commit 6ad77846a720b3f7817206553050ae200c54fcce. The original checkout
+C:\Users\ADMIN\Music\Diabetic-Retinopathy- remains clean and unchanged.
+
+Inspected the actual index.css, App.tsx, TopAppBar.tsx, AnalysisScreen.tsx,
+AnalysisVisualization.tsx, TopKSelector.tsx, RegionCounts.tsx and the complete
+BatchAnalysisScreen.tsx, plus api.ts mappings and backend/app/batch.py as needed.
+The API maps grade output to "DR grade N" and "Model class 0–4 (repository class
+ordering)". It maps lesion severity to Not assessed. Sample-patient clinical
+labels are not substituted for real model results.
+
+This pass changes Qt presentation and batch controller data/control plumbing.
+ModelManager.cpp, model architecture, checkpoint bytes, precision, thresholds,
+postprocessing, CAM generation and CUDA setup were not changed.
+
+FILES ADDED OR MODIFIED
+----------------------
+Modified:
+  CMakeLists.txt
+  README.md
+  src/main.cpp
+  src/ui/MainWindow.cpp
+  include/ui/MainWindow.h
+  src/app/AnalysisController.cpp
+  include/app/AnalysisController.h
+  tests/UiRegression.cpp
+  assets/fonts/MaterialSymbols.ttf
+Added:
+  include/ui/UiComponents.h
+  src/ui/AnalysisPage.cpp
+  src/ui/BatchPage.cpp
+  include/app/BatchDiscovery.h
+  src/app/BatchDiscovery.cpp
+  tests/FunctionalSmoke.cpp
+  assets/check.xpm
+  specs/S3-analysis_batch_fidelity.txt
+
+Validation-only scripts and evidence are under build/validation/s3. The source
+preview and fixture serializer live only under build/reference-ui and
+build/validation/s3/prepare_reference.py; no reference-checkout edits were made.
+Before-edit copies of the original native files are under build/validation/s3/before.
+The native repository currently has untracked project files, so there is no
+committed baseline diff for this pass.
+
+ANALYSIS STRUCTURE AND BEHAVIOR
+------------------------------
+* One bordered, padded segmented container for the four Analysis tabs. The
+  reusable segmented helper also handles Grade, attention mechanism, image,
+  Detection and Annotation modes with exclusive green selected buttons.
+* Grade: Original / Grad-CAM / Overlay and live opacity percentage.
+* Probability: available lesion classes with readable names; Grad-CAM /
+  Probability; Original / Heatmap or Grad-CAM / Overlay. Initial state is
+  Probability, HE, Overlay, 50%. Uses the selected class's actual probability
+  path. There is no aggregate-layer or bounding-box fallback. Grad-CAM displays
+  availability/status from the existing run and never generates a missing CAM.
+* Detection: Boxes / Coordinates, raw checkbox, class selector and Top-K.
+  Raw mode uses raw_regions and bypasses class filtering and Top-K. Box/card
+  selection shares original pixel coordinates; selecting a card switches to
+  Detection and highlights the card and box. Coordinate cursor updates the
+  readout without rebuilding the screen.
+* Annotation: Original / Mask / Overlay, four class visibility checkboxes,
+  opacity/percentage and MA red / HE orange / EX yellow / SE cyan legend.
+  It colors existing thresholded binary masks; the displayed threshold is 0.5.
+  No model threshold is reapplied or changed.
+* The black rounded image stage is 4:3. Each image is centered with its original
+  aspect ratio. Display downscaling is separate from original-coordinate data.
+  Legends and explanatory source text appear under the stage.
+* Diagnostic summary: source caption, DR grade and mapped grade label, numeric
+  confidence and meter, readable lesion-name pills, full-width paired confirm
+  and review actions, lightweight masks link and compare action/arrow.
+* The primary lesion table was replaced by responsive cards, with 3 desktop,
+  2 medium and 1 small-screen columns. Cards include the lesion icon/name,
+  Not assessed badge, coordinates, source description, mean probability and
+  meter. Area, maximum probability and component count remain available in
+  tooltips. Region counts remain visible above the grid.
+
+BATCH STRUCTURE AND BEHAVIOR
+---------------------------
+* Centered 1440px maximum shell; 32 / 24 / 16px horizontal padding at desktop /
+  medium / small breakpoints, 32px top and 96px bottom. Manrope 36px title,
+  subtitle, divider and conditional state badge.
+* One rounded workflow container, three columns with full internal vertical
+  dividers on desktop; stacked steps and horizontal dividers below 1024px.
+  Each step has a 32px green number badge. Folder actions are compact.
+* Initial review text says to choose a folder; Patient List is disabled until
+  discovery. There is no permanent empty Detected Images panel.
+* Discovery supports patient folders, root patient.json and flat filenames.
+  It detects unreadable inputs, unknown eye assignments, metadata errors,
+  name conflicts, duplicate candidates, paired/single eyes and empty identified
+  patient folders. Review shows actual counts, acknowledgement and selections.
+* The conditional Detected Patients section has the seven source columns,
+  duplicate OS/OD candidate radio choices, issue/status presentation and actual
+  per-eye stages. Rejected items/reasons and a collapsible inverse-surface
+  discovery log appear when applicable.
+* Create patient-wise folders follows pc-gpu: Windows-safe ID_Name group or
+  numbered Patient_001_ID_Name group, with Left_OS / Right_OD subfolders.
+  Selected candidates form the real processing plan. Unresolved entries block
+  start unless Skip unresolved entries is enabled. CLI relative-folder output
+  behavior is preserved.
+* GPU capacity comes from cudaGetDevice/cudaGetDeviceProperties for the current
+  device: real name, total VRAM, max(1,floor(0.006*VRAM_MB+41.66)), selected image
+  count and oversize/unavailable state. No fake production capacity values.
+* Batch Progress has allowed Pause / Resume / Cancel controls, actual stage
+  events, progress and six metrics. Atomic control flags and a condition
+  variable implement pause/cancel at image boundaries; cancellation wakes a
+  paused worker. Existing per-image inference remains unchanged.
+* Busy-state changes now rebuild Batch so Choose Folder is enabled when model
+  loading finishes. This specific startup-to-ready interaction is tested.
+
+VISUAL SYSTEM
+-------------
+Uses the pc-gpu palette and bundled Manrope / Atkinson Hyperlegible Next fonts.
+MaterialSymbols.ttf was incorrectly the Thin weight. It is now the already
+available reference Regular 400 font, SHA256:
+294608E6DC22A0EA7CF1C4828F95E4C5EDE2CFD77A3F0110E0F6564DCB757D14
+Controls, checkbox/radio indicators, sliders, disabled buttons, tables and
+scrollbars are styled. Native header navigation collapses to icons at narrower
+widths; the patient selector is hidden below 1024px.
+
+SCREENSHOTS AND COMPARISON
+-------------------------
+All five requested native screenshots were generated through the packaged
+--screenshot command, with QT_QPA_PLATFORM=windows and PATH restricted to
+Windows system directories. Each process was waited on and exited 0:
+  analysis-grade.png         vs reference-grade.png
+  analysis-probability.png   vs reference-probability.png
+  analysis-detection.png     vs reference-detection.png
+  analysis-annotation.png    vs reference-annotation.png
+  batch-initial.png          vs reference-batch-initial.png
+
+Files are under build/validation/s3. screenshot-results.json records exits.
+The reference preview imports the actual pc-gpu components. Its eight required
+source files were byte-compared with the read-only checkout. The same real
+native saved result and images were serialized into the source API shape; mask
+fixtures are transparent colored copies of already thresholded masks.
+
+The requested native canvas is 1426x952. The in-app browser raster can differ
+slightly from the viewport override and has different font rasterization.
+The source fixture has an extra inference-run line; the native JSON fixture
+does not expose that source field. Native Batch CLI screenshots include a
+synthetic current patient in the header; the source Batch initial preview does
+not. Compare layout and controls, rather than treating this as pixel equality.
+
+Comparison led to corrections to summary action widths, full-height workflow
+dividers, disabled-control colors, regular icon weight/size and busy-state
+refresh. Additional UI screenshots cover probability/annotation legends,
+unavailable lesion CAM, selected region cards, raw mode, 800x900 layouts,
+discovery, processing, real pause and real completion. comparison.html provides
+the five source/native pairs plus additional native evidence.
+
+BUILD, PACKAGE AND FUNCTIONAL RESULTS
+------------------------------------
+Incremental Release build succeeded under initialized VS 2022 x64 tools.
+RetinaGram.exe, RetinaGramUiSmoke.exe and RetinaGramFunctionalSmoke.exe linked.
+UI QtTest: 5 passed / 0 failed (three workflow cases plus init/cleanup), 6458ms.
+Functional QtTest: 3 passed / 0 failed (real worker case plus init/cleanup),
+12508ms. Logs: ui-tests.txt and functional-tests.txt.
+
+UI coverage: all seven pages, registration, patient selection, image import,
+analysis dispatch, New Session cancellation/confirmation; HE->MA changes the
+actual rendered heatmap; opacity changes image and percentage; mask visibility
+changes the rendered image; CAM unavailable state; 25 processed vs 113 raw
+cards; region selection; duplicate selections; conditional batch list/log;
+busy-to-ready button refresh and medium layouts.
+
+The real worker used temporary paired OS/OD test inputs. Pause reached Paused
+between images, Resume finished both, two valid PDF headers were verified,
+and a second run was cancelled while paused. Both output grouping modes were
+verified on disk. Processing uses the existing ModelManager and native report
+writer, not fabricated inference responses.
+
+Deployment succeeded: 56 files, 4.39 GiB. The executable SHA256 matches build
+and package:
+EBE9530411ECCC73D2F93467A5FCFD640A5AB3923C44DCAF968D4388DC813782
+All four production model hashes match the pre-pass values and package copies
+(model-hashes.json). No Python/Node/test runner is deployed.
+
+Normal development and packaged launches both produced a visible Capture
+window with "Native models ready for analysis." Existing patient/session data
+was present. The packaged launch used only Windows system directories in PATH.
+A fresh packaged --analyze completed on CUDA, grade 3, 110 retained regions,
+exit 0 (packaged-analysis.json and packaged-analysis.exit.txt).
+
+LIMITS OF THIS PASS
+-------------------
+This is verified component/control/conditional-state fidelity for Analysis
+and Batch, not a pixel-perfect equivalence claim for every application page.
+Qt text wrapping, borders, icon rendering and native control sizing have small
+differences from browser CSS. Confirm/Flag retain the pre-existing native
+status-message behavior; this pass does not add source web review persistence.
+Cloud Sync remains the existing disconnected local integration. Native tests
+do not establish clinical validity or broaden the earlier model parity study.

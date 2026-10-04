@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "checkpoints_directory": "../checkpoints",
+  "iqa": {
+    "enabled": true,
+    "adapter": "onnx_classification",
+    "model": "iqa_int8.onnx",
+    "input": {
+      "width": 224,
+      "height": 224,
+      "channels": 3,
+      "layout": "NCHW",
+      "dtype": "float32",
+      "color": "RGB",
+      "resize": "pillow_bilinear",
+      "normalization": {
+        "type": "imagenet",
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "output": {
+      "type": "logits",
+      "activation": "softmax",
+      "classes": [
+        "Good",
+        "Usable",
+        "Reject"
+      ]
+    }
+  },
+  "restoration": {
+    "enabled": true,
+    "adapter": "onnx_image_restoration",
+    "model": "nafnet_fp16.onnx",
+    "input": {
+      "dynamic_spatial": true,
+      "channels": 3,
+      "layout": "NCHW",
+      "color": "RGB",
+      "resize": "none",
+      "normalization": {
+        "type": "none"
+      },
+      "range": [
+        0,
+        1
+      ],
+      "accepted_dtypes": [
+        "float16",
+        "float32"
+      ]
+    },
+    "output": {
+      "same_dimensions_as_input": true,
+      "range": [
+        0,
+        1
+      ]
+    }
+  },
+  "grading": {
+    "enabled": true,
+    "adapter": "torchscript_classifier_cam",
+    "model": "grade_bf16_cam.pt",
+    "input": {
+      "width": 224,
+      "height": 224,
+      "channels": 3,
+      "layout": "NCHW",
+      "dtype": "bfloat16",
+      "color": "RGB",
+      "resize": "pillow_bilinear",
+      "normalization": {
+        "type": "imagenet",
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "output": {
+      "type": "logits",
+      "contract": "scores_and_activations",
+      "scores_index": 0,
+      "activations_index": 1,
+      "classes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "activation": "softmax"
+    },
+    "cam": {
+      "enabled": true
+    }
+  },
+  "lesion": {
+    "enabled": true,
+    "adapter": "torchscript_segmentation_cam",
+    "model": "lesion_bf16_cam.pt",
+    "input": {
+      "width": 768,
+      "height": 768,
+      "channels": 3,
+      "layout": "NCHW",
+      "dtype": "bfloat16",
+      "color": "RGB",
+      "resize": "pillow_bilinear",
+      "normalization": {
+        "type": "imagenet",
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    "output": {
+      "type": "logits",
+      "contract": "scores_and_activations",
+      "scores_index": 0,
+      "activations_index": 1,
+      "channels": 4,
+      "activation": "sigmoid"
+    },
+    "classes": [
+      {
+        "code": "MA",
+        "channel": 0,
+        "threshold": 0.5,
+        "minimum_area": 0.4,
+        "merge_distance": 0
+      },
+      {
+        "code": "HE",
+        "channel": 1,
+        "threshold": 0.5,
+        "minimum_area": 2,
+        "merge_distance": 1
+      },
+      {
+        "code": "EX",
+        "channel": 2,
+        "threshold": 0.5,
+        "minimum_area": 0.4,
+        "merge_distance": 0
+      },
+      {
+        "code": "SE",
+        "channel": 3,
+        "threshold": 0.5,
+        "minimum_area": 4,
+        "merge_distance": 1
+      }
+    ],
+    "cam": {
+      "enabled_by_default": false,
+      "environment_override": "RETINAGRAM_ENABLE_LESION_CAM"
+    },
+    "postprocessing": {
+      "reference_size": 768,
+      "connectivity": 8,
+      "minimum_mean_probability": 0.5,
+      "overlay_alpha": 0.45
+    }
+  }
+}
