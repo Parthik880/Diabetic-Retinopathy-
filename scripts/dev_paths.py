@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(os.environ.get("RETINAGRAM_REFERENCE_ROOT", ROOT.parent / "Diabetic-Retinopathy-"))
 SOURCE_BACKEND = SOURCE / "backend"
-CHECKPOINTS = ROOT / "checkpoints"
+CHECKPOINTS = ROOT / "src/checkpoints"
 SOURCE_CHECKPOINTS = Path(os.environ.get("RETINAGRAM_SOURCE_CHECKPOINTS", SOURCE / "checkpoints"))
 
 

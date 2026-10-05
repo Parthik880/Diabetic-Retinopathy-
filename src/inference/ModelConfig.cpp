@@ -1,4 +1,5 @@
 #include "inference/ModelConfig.h"
+#include "core/AppPaths.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -74,14 +75,14 @@ void canonicalClasses(const Fields& fields, const QStringList& expected, QString
     auto sorted=out, target=expected; sorted.sort(); target.sort();
     if(sorted!=target) invalid(fields.context,"classes must be a permutation of "+expected.join(", "));
 }
-StageConfig stage(const Fields& root,const QString& name,const QString& expectedAdapter,const QString& checkpoints) {
+StageConfig stage(const Fields& root,const QString& name,const QString& expectedAdapter,const ModelConfig& config) {
     const auto f=root.child(name); f.keys(name=="lesion"?QStringList{"enabled","adapter","model","input","output","cam","classes","postprocessing"}:name=="grading"?QStringList{"enabled","adapter","model","input","output","cam"}:QStringList{"enabled","adapter","model","input","output"});
     if(!f.boolean("enabled")) invalid(name,"this pipeline requires the stage to be enabled");
     StageConfig s; s.stage=name; s.adapter=f.string("adapter"); s.model=f.string("model");
     if(s.adapter!=expectedAdapter) invalid(name,"unsupported adapter '"+s.adapter+"'");
     if(s.model=="."||s.model==".."||s.model.contains('/')||s.model.contains('\\')||s.model.contains(':')||QDir::isAbsolutePath(s.model)) invalid(name,"model must be a filename in the flat checkpoints directory");
-    s.path=QDir(checkpoints).absoluteFilePath(s.model);
-    if(!QFileInfo(s.path).isFile()) invalid(name,"required model is missing: "+s.path);
+    s.path=QDir::cleanPath(QDir(config.checkpointsDirectory).absoluteFilePath(s.model));
+    if(!QFileInfo(s.path).isFile()) invalid(name,"required model is missing: "+s.path+"\nApplication root: "+config.applicationRoot+"\nConfiguration: "+config.file);
     const auto in=f.child("input");
     in.keys({"name","width","height","dynamic_spatial","channels","layout","dtype","color","resize","normalization","range","accepted_dtypes"});
     if(in.integer("channels",1,16)!=3) invalid(name,"input channels must be 3");
@@ -138,14 +139,7 @@ QString dtypeName(TensorDtype value) {
     switch(value) { case TensorDtype::Float32:return "float32";case TensorDtype::Float16:return "float16";case TensorDtype::BFloat16:return "bfloat16"; } return {};
 }
 QString ModelConfig::defaultPath() {
-    if(qEnvironmentVariableIsSet("RETINAGRAM_MODEL_CONFIG")) {
-        const auto file=qEnvironmentVariable("RETINAGRAM_MODEL_CONFIG");
-        if(file.isEmpty()) invalid("root","RETINAGRAM_MODEL_CONFIG is empty");
-        return QFileInfo(file).absoluteFilePath();
-    }
-    QDir dir(QCoreApplication::applicationDirPath());
-    for(int i=0;i<5;++i) { const auto path=dir.filePath("config/models.json"); if(QFileInfo(path).isFile()) return path; if(!dir.cdUp()) break; }
-    return QDir::current().filePath("config/models.json");
+    return AppPaths::configPath();
 }
 ModelConfig ModelConfig::load(QString file,QString checkpoints) {
     if(file.isEmpty()) file=defaultPath();
@@ -154,13 +148,13 @@ ModelConfig ModelConfig::load(QString file,QString checkpoints) {
     if(error.error!=QJsonParseError::NoError||!doc.isObject()) invalid("root","invalid JSON in "+file+": "+error.errorString());
     const Fields root{doc.object(),"root"}; root.keys({"version","checkpoints_directory","iqa","restoration","grading","lesion"});
     if(root.integer("version",1,1)!=1) invalid("root","unsupported version");
-    ModelConfig c; c.file=QFileInfo(file).absoluteFilePath();
+    ModelConfig c; c.file=QFileInfo(file).absoluteFilePath(); c.applicationRoot=AppPaths::applicationRoot();
     const QString configuredDirectory=root.string("checkpoints_directory");
-    c.checkpointsDirectory=checkpoints.isEmpty()?QDir(QFileInfo(c.file).absolutePath()).absoluteFilePath(configuredDirectory):QFileInfo(checkpoints).absoluteFilePath();
-    c.quality=stage(root,"iqa","onnx_classification",c.checkpointsDirectory);
-    c.restoration=stage(root,"restoration","onnx_image_restoration",c.checkpointsDirectory);
-    c.grading=stage(root,"grading","torchscript_classifier_cam",c.checkpointsDirectory);
-    c.lesion=stage(root,"lesion","torchscript_segmentation_cam",c.checkpointsDirectory);
+    c.checkpointsDirectory=QDir::cleanPath(checkpoints.isEmpty()?QDir(QFileInfo(c.file).absolutePath()).absoluteFilePath(configuredDirectory):QFileInfo(checkpoints).absoluteFilePath());
+    c.quality=stage(root,"iqa","onnx_classification",c);
+    c.restoration=stage(root,"restoration","onnx_image_restoration",c);
+    c.grading=stage(root,"grading","torchscript_classifier_cam",c);
+    c.lesion=stage(root,"lesion","torchscript_segmentation_cam",c);
     const auto lesion=root.child("lesion"); const auto classes=lesion.value("classes");
     if(!classes.isArray()||classes.toArray().size()!=4) invalid("lesion","expected 4 canonical lesion classes");
     QSet<QString> codes; QSet<int> channels;

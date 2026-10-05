@@ -1,4 +1,6 @@
 #include "inference/ModelConfig.h"
+#include "core/AppPaths.h"
+#include <QScopeGuard>
 #include "inference/ModelManager.h"
 #include "inference/stages/LesionPostprocessor.h"
 #include <QTest>
@@ -58,6 +60,26 @@ private slots:
         QCOMPARE(production_.grading.model,QString("grade_bf16_cam.pt"));QCOMPARE(production_.grading.input.dtype,TensorDtype::BFloat16);
         QCOMPARE(production_.lesion.model,QString("lesion_bf16_cam.pt"));QCOMPARE(production_.lesion.input.width,768);
         QCOMPARE(production_.quality.output.classes,QStringList({"Good","Usable","Reject"}));QVERIFY(production_.grading.camEnabled);QVERIFY(!production_.lesion.camEnabled);
+    }
+    void legacyEnvironmentCannotRedirectConfig() {
+        const auto previous=qgetenv("RETINAGRAM_MODEL_CONFIG");
+        const bool existed=qEnvironmentVariableIsSet("RETINAGRAM_MODEL_CONFIG");
+        const auto restore=qScopeGuard([&] {if(existed) qputenv("RETINAGRAM_MODEL_CONFIG",previous);else qunsetenv("RETINAGRAM_MODEL_CONFIG");});
+        qputenv("RETINAGRAM_MODEL_CONFIG","missing-legacy-checkout/config/models.json");
+        QCOMPARE(ModelConfig::defaultPath(),production_.file);
+        QCOMPARE(ModelConfig::load().quality.path,production_.quality.path);
+    }
+    void rootOverrideRequiresRuntimeMarkers() {
+        const auto previous=qgetenv("RETINAGRAM_ROOT");
+        const bool existed=qEnvironmentVariableIsSet("RETINAGRAM_ROOT");
+        const auto restore=qScopeGuard([&] {if(existed) qputenv("RETINAGRAM_ROOT",previous);else qunsetenv("RETINAGRAM_ROOT");});
+        QTemporaryDir root;QVERIFY(root.isValid());
+        qputenv("RETINAGRAM_ROOT",root.path().toUtf8());
+        QVERIFY_EXCEPTION_THROWN(retina::AppPaths::applicationRoot(),std::runtime_error);
+        QVERIFY(QDir(root.path()).mkpath("config"));QVERIFY(QDir(root.path()).mkpath("src/checkpoints"));
+        QFile marker(root.filePath("config/models.json"));QVERIFY(marker.open(QIODevice::WriteOnly));marker.write("{}");marker.close();
+        QCOMPARE(retina::AppPaths::applicationRoot(),QDir(root.path()).canonicalPath());
+        QCOMPARE(retina::AppPaths::checkpointsPath(),QDir(root.path()).filePath("src/checkpoints"));
     }
     void missingModel() {auto json=json_;auto stage=json["grading"].toObject();stage["model"]="missing_test_model.pt";json["grading"]=stage;invalidConfig(json,"required model is missing");}
     void invalidQualityClassCount() {auto json=json_;auto stage=json["iqa"].toObject();auto out=stage["output"].toObject();out["classes"]=QJsonArray{"Good","Reject"};stage["output"]=out;json["iqa"]=stage;invalidConfig(json,"expected 3 class labels but 2");}

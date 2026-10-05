@@ -23,7 +23,7 @@ equivalence. Broader representative testing and professional review are required
 Training/reference checkpoints
         | offline conversion only
         v
-checkpoints/ + config/models.json
+src/checkpoints/ + config/models.json
         |
 Qt 6 MainWindow
         |
@@ -66,7 +66,7 @@ IQA runs **once per eye**.
 
 The four production artifacts are **included as ordinary Git files** in this
 branch, not LFS pointers. Their exact sizes and SHA256 values are recorded in
-[checkpoints/MODEL_MANIFEST.json](checkpoints/MODEL_MANIFEST.json).
+[src/checkpoints/MODEL_MANIFEST.json](src/checkpoints/MODEL_MANIFEST.json).
 
 | Stage | Artifact | Precision |
 | --- | --- | --- |
@@ -91,11 +91,11 @@ sigmoid threshold 0.5. Grading labels are 0 No diabetic retinopathy, 1 Mild NPDR
 | Path | Contents |
 | --- | --- |
 | src/ | Native application, UI, inference adapters, image decoding, reporting |
-| include/ | Public C++ interfaces and typed results |
+| src/include/ | Public C++ interfaces and typed results |
 | config/ | Versioned model configuration |
 | assets/ | Runtime logo, icons, and fonts |
 | resources/ | Reserved native resources directory |
-| checkpoints/ | Four production model artifacts and their manifest |
+| src/checkpoints/ | Four production model artifacts and their manifest |
 | scripts/ | Local launch/deployment, validation, benchmarks, offline conversion |
 | tests/ | Isolated Qt UI, functional, inference, and bundle tests |
 | specs/ | Migration history and final implementation records |
@@ -133,12 +133,93 @@ cd Diabetic-Retinopathy-
 For reference comparisons, clone pc-gpu into a **separate** directory. Do not
 checkout the reference implementation over the native source.
 
+## Quick Start — Windows
+
+Install the tested Windows SDK prerequisites below, then use **Git Bash or MSYS2
+Bash** from the cloned repository:
+
+~~~bash
+git clone --branch PCGPU.cpp --single-branch https://github.com/Parthik880/Diabetic-Retinopathy-.git
+cd Diabetic-Retinopathy-
+./run.sh
+./run.sh --validate
+./run.sh --model-info
+./deploy.sh
+~~~
+
+`run.sh` discovers its own root, checks the config and four selected models,
+locates VS x64 tools, CMake/Ninja and SDKs, configures Release, builds with three
+jobs, sets native DLL paths, then launches the GUI. No manual configure/build is
+needed first. `--validate` and `--model-info` build and execute those CLI modes.
+`--no-build` launches an existing valid build. `--clean` archives the compiler
+tree under ignored build/ninja.previous-* and recreates build/ninja, preserving
+build/toolchain. It refuses cleanup while the local app or a build is running.
+A cache whose CMAKE_HOME_DIRECTORY belongs to another checkout is archived and
+reconfigured automatically. CMake regeneration checks changed build inputs each run.
+
+`deploy.sh` performs configure/build, invokes deploy-windows.ps1, checks package
+files and validates all packaged models with Windows-only PATH. Success is printed
+only after validation. It packages the same relative config and model layout.
+An existing package is archived under ignored build/package.previous-* before a
+fresh package is created; close its running application first.
+The lower-level deploy-windows.ps1 remains a packaging-only command.
+
+SDK discovery uses QT_ROOT, then valid Qt cache, qtpaths6 or a compatible MSVC x64
+installation under the standard Qt directory. Torch uses TORCH_ROOT, a usable
+CUDA PyTorch on PATH, then valid cache. ONNX Runtime uses ONNXRUNTIME_ROOT, the
+repo-local build/toolchain/onnxruntime-gpu-windows-1.26.0 SDK, then valid cache.
+CUDA uses CUDA_PATH, nvcc/cache or the installed toolkit directory. Explicit
+invalid dependency overrides fail; set the SDK variables for custom installations.
+These are external SDK locations, independent of the repository's location.
+
+## Portable runtime paths
+
+AppPaths starts at the executable directory, checks it and up to five parent
+directories for **both config/models.json and src/checkpoints/**, then repeats
+the bounded search from the working directory. This finds the checkout from
+build/ninja/RetinaGram.exe and finds the package itself from build/package.
+Assets, default config and model layout share this resolver. No source-directory
+string is compiled into runtime discovery.
+
+RETINAGRAM_ROOT is an optional explicit root and must contain both markers.
+Normal startup ignores legacy RETINAGRAM_MODEL_CONFIG even if it points to an
+old checkout. Advanced/testing configuration selection is explicit:
+
+~~~powershell
+.\build\package\RetinaGram.exe --model-info --model-config 'D:\Experiments\models.json'
+~~~
+
+The default JSON uses "checkpoints_directory": "../src/checkpoints", relative
+to the config file. Model info prints the resolved root, configuration, every
+model path and existence. Missing-model errors include the resolved path/root/
+config. Advanced JSON overrides retain config-relative model resolution.
+
+~~~text
+repo-root/
+  run.sh
+  deploy.sh
+  CMakeLists.txt
+  config/models.json
+  src/include/                 # public C++ headers
+  src/core/AppPaths.cpp
+  src/checkpoints/             # four production artifacts and manifest
+  assets/
+  scripts/
+  build/ninja/RetinaGram.exe   # development executable, ignored
+  build/package/              # generated portable runtime, ignored
+    RetinaGram.exe
+    config/models.json
+    src/checkpoints/
+    assets/
+    ... runtime DLLs and Qt plugins
+~~~
+
 ## Model setup
 
 A normal clone contains:
 
 ~~~text
-checkpoints/
+src/checkpoints/
   iqa_int8.onnx
   nafnet_fp16.onnx
   lesion_bf16_cam.pt
@@ -252,7 +333,7 @@ For example, --view "Lesion Probability" selects that Analysis view.
 | --- | --- |
 | RETINAGRAM_FORCE_CPU=1 | Force Torch CPU and ONNX CPU. Presence is tested; even a value of 0 forces CPU. Unset it to restore automatic selection. |
 | RETINAGRAM_ENABLE_LESION_CAM=1 | Opt in to lesion CAM through the configured environment switch; routine lesion CAM is disabled. |
-| RETINAGRAM_MODEL_CONFIG | Explicit model JSON path; missing/invalid overrides fail rather than silently falling back. |
+| RETINAGRAM_ROOT | Optional absolute application root; must contain config/models.json and src/checkpoints/. Invalid overrides fail clearly. |
 | QT_ROOT / TORCH_ROOT / ONNXRUNTIME_ROOT / CUDA_PATH | Optional dependency overrides for development scripts. |
 
 ## Data storage
@@ -326,7 +407,7 @@ the current image finishes, and Resume/Cancel wakes a paused worker.
 
 ## Compatible model replacement
 
-Put a compatible artifact directly in checkpoints/, update the corresponding
+Put a compatible artifact directly in src/checkpoints/, update the corresponding
 stage in config/models.json, run --validate-models, and restart. No C++ compilation
 is needed for an existing adapter contract. Update the checkpoint Git allowlist
 deliberately if publishing a replacement.
@@ -404,16 +485,16 @@ clone and repeat validation before adopting results.
 - **Qt platform plugin failure:** initialize the development DLL paths and match
   Qt/plugins versions; for deployment include platforms/qwindows.dll.
 - **ONNX Runtime missing/wrong version:** verify ONNXRUNTIME_ROOT and selected
-  native DLLs. An older ORT DLL on PATH can override the intended SDK; the launch
-  script prepends the configured runtime directory.
+  native DLLs. The development helper copies the selected ORT DLLs beside the
+  executable and prepends the configured runtime directory to PATH.
 - **CUDA/cuDNN DLL failure:** match runtime versions, use a compatible driver,
   and retain cuDNN/NVRTC components collected by deployment.
 - **Models not found:** inspect --model-info, the explicit config override,
   checkpoints_directory relative to JSON, and each configured flat filename.
 - **Unexpected CPU execution:** unset RETINAGRAM_FORCE_CPU entirely, then inspect
   device/provider output and CUDA initialization errors. CPU execution is much slower.
-- **Package appears stale:** build after editing source, then deploy to a fresh
-  destination. Deployment is not compilation.
+- **Package appears stale:** use ./deploy.sh to rebuild and create a fresh
+  package. The lower-level deploy-windows.ps1 only packages an existing build.
 
 ## Validation limits and measurements
 

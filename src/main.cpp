@@ -4,6 +4,7 @@
 #include "inference/ModelManager.h"
 #include "inference/ModelConfig.h"
 #include "ui/MainWindow.h"
+#include "core/AppPaths.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -20,6 +21,7 @@
 #include <QTimer>
 #include <QTextStream>
 #include <stdexcept>
+#include <vector>
 #include <cuda_runtime_api.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -133,9 +135,9 @@ int batchFromCommandLine(int argc, char* argv[]) {
     QApplication application(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("RetinaGram"));
     QCoreApplication::setApplicationName(QStringLiteral("RetinaGram"));
-    const QStringList fontDirectories{
-        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("assets/fonts")),
-        QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("../../assets/fonts"))};
+    QStringList fontDirectories;
+    try { fontDirectories.append(retina::AppPaths::assetsPath("fonts")); }
+    catch(const std::exception& error) { QTextStream(stderr)<<error.what()<<'\n';return 3; }
     for (const QString& directory : fontDirectories) {
         if (!QFileInfo::exists(QDir(directory).filePath(QStringLiteral("Manrope-Regular.ttf")))) continue;
         QFontDatabase::addApplicationFont(QDir(directory).filePath(QStringLiteral("Manrope-Regular.ttf")));
@@ -165,6 +167,19 @@ int batchFromCommandLine(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    // Strip the explicit advanced option before existing CLI mode dispatch.
+    // Global RETINAGRAM_MODEL_CONFIG is intentionally ignored.
+    std::vector<char*> filtered{argv[0]};
+    bool configSpecified=false;
+    for(int index=1;index<argc;++index) {
+        if(QString::fromLocal8Bit(argv[index])=="--model-config") {
+            if(configSpecified||index+1>=argc||QString::fromLocal8Bit(argv[index+1]).startsWith("--")) {
+                QTextStream(stderr)<<"Usage: --model-config <file> (once)\n"; return 2;
+            }
+            retina::AppPaths::setModelConfigOverride(QString::fromLocal8Bit(argv[++index])); configSpecified=true;
+        } else filtered.push_back(argv[index]);
+    }
+    argc=static_cast<int>(filtered.size()); filtered.push_back(nullptr); argv=filtered.data();
     if((argc==2||argc==5)&&(QString::fromLocal8Bit(argv[1])=="--validate-models"||QString::fromLocal8Bit(argv[1])=="--model-info")) {
         QCoreApplication application(argc,argv);
         QCoreApplication::setOrganizationName("RetinaGram"); QCoreApplication::setApplicationName("RetinaGram");
@@ -173,9 +188,9 @@ int main(int argc, char* argv[]) {
             const auto config=retina::inference::ModelConfig::load(argc==5?QString::fromLocal8Bit(argv[2]):QString{},argc==5?QString::fromLocal8Bit(argv[3]):QString{});
             if(application.arguments()[1]=="--model-info") {
                 QTextStream out(stdout);
-                out<<"Configuration: "<<config.file<<'\n';
+                out<<"Application root: "<<config.applicationRoot<<"\nConfiguration: "<<config.file<<'\n';
                 for(const auto* stage:{&config.quality,&config.restoration,&config.grading,&config.lesion}) {
-                    out<<stage->stage<<"\n  Adapter: "<<stage->adapter<<"\n  File: "<<stage->model<<"\n  Input: ";
+                    out<<stage->stage<<"\n  Adapter: "<<stage->adapter<<"\n  File: "<<stage->model<<"\n  Path: "<<stage->path<<"\n  Exists: "<<(QFileInfo(stage->path).isFile()?"yes":"no")<<"\n  Input: ";
                     if(stage->input.dynamicSpatial) out<<"1x3xHxW, dynamic spatial";
                     else out<<"1x3x"<<stage->input.height<<'x'<<stage->input.width<<", "<<retina::inference::dtypeName(stage->input.dtype);
                     out<<"\n"; if(!stage->output.classes.isEmpty()) out<<"  Classes: "<<stage->output.classes.join(", ")<<'\n';
@@ -235,6 +250,8 @@ int main(int argc, char* argv[]) {
             return 0;
         } catch(const std::exception& error) {QTextStream(stderr)<<error.what()<<'\n';return 5;}
     }
+    try { retina::AppPaths::applicationRoot(); }
+    catch(const std::exception& error) { QTextStream(stderr)<<error.what()<<'\n'; return 3; }
     retina::MainWindow window;
     AnalysisController controller(&window);
     window.show();

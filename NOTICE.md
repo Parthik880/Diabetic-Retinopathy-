@@ -7,7 +7,7 @@ application or to user-supplied model artifacts.
 
 The four deployment models are derivatives of supplied reference checkpoints,
 converted offline as documented in the migration specs. Their bytes and hashes
-are preserved in checkpoints/MODEL_MANIFEST.json. No source training checkpoint,
+are preserved in src/checkpoints/MODEL_MANIFEST.json. No source training checkpoint,
 patient scan, calibration image, or session database is published here.
 
 Bundled fonts retain their upstream licenses in assets/fonts/:

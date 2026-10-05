@@ -8,7 +8,7 @@ $project = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $executable = Join-Path $BuildDirectory 'RetinaGram.exe'
 if (-not (Test-Path -LiteralPath $executable)) { throw "Build RetinaGram.exe first: $executable" }
 $builtAt = (Get-Item -LiteralPath $executable).LastWriteTimeUtc
-$nativeSources = @(Get-ChildItem -LiteralPath (Join-Path $project 'src'), (Join-Path $project 'include') -File -Recurse) +
+$nativeSources = @(Get-ChildItem -LiteralPath (Join-Path $project 'src') -File -Recurse | Where-Object { $_.Extension -in @('.cpp','.h') }) +
     @(Get-Item -LiteralPath (Join-Path $project 'CMakeLists.txt'))
 if ($nativeSources | Where-Object { $_.LastWriteTimeUtc -gt $builtAt }) {
     throw 'Native source is newer than RetinaGram.exe. Rebuild in the VS x64 environment before deploying.'
@@ -38,6 +38,7 @@ foreach ($directory in @($qt, $torch, $ort, $cuda)) {
     if (-not (Test-Path -LiteralPath $directory)) { throw "Missing runtime dependency directory: $directory" }
 }
 
+if ((Test-Path -LiteralPath $Destination) -and @(Get-ChildItem -LiteralPath $Destination -Force).Count) { throw 'Deployment needs a fresh destination. Use ./deploy.sh to archive the previous package safely.' }
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null
 Copy-Item -LiteralPath $executable -Destination $Destination -Force
 if ((Get-FileHash -LiteralPath $executable).Hash -ne
@@ -45,12 +46,12 @@ if ((Get-FileHash -LiteralPath $executable).Hash -ne
     throw 'Packaged executable does not match the development build.'
 }
 Copy-Item -LiteralPath (Join-Path $project 'assets') -Destination $Destination -Recurse -Force
-$models = Join-Path $Destination 'checkpoints'
+$models = Join-Path $Destination 'src\checkpoints'
 New-Item -ItemType Directory -Force -Path $models | Out-Null
 $configFile = Join-Path $project 'config\models.json'
 $modelConfig = Get-Content -LiteralPath $configFile -Raw | ConvertFrom-Json
-if ($modelConfig.version -ne 1 -or $modelConfig.checkpoints_directory -ne '../checkpoints') {
-    throw 'Deployment requires model config version 1 with checkpoints_directory ../checkpoints.'
+if ($modelConfig.version -ne 1 -or $modelConfig.checkpoints_directory -ne '../src/checkpoints') {
+    throw 'Deployment requires model config version 1 with checkpoints_directory ../src/checkpoints.'
 }
 $configDestination = Join-Path $Destination 'config'
 New-Item -ItemType Directory -Force -Path $configDestination | Out-Null
@@ -63,7 +64,9 @@ $modelNames = foreach ($stage in @('iqa', 'restoration', 'grading', 'lesion')) {
     $name
 }
 foreach ($name in ($modelNames | Select-Object -Unique)) {
-    Copy-Item -LiteralPath (Join-Path $project "checkpoints\$name") -Destination $models -Force
+    $source = Join-Path $project "src\checkpoints\$name"
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Required model is missing: $source" }
+    Copy-Item -LiteralPath $source -Destination $models -Force
 }
 
 $env:PATH = "$($qt)\bin;$ort;$torch;$cuda;$env:PATH"
@@ -122,4 +125,8 @@ while ($queue.Count -gt 0) {
 $files = Get-ChildItem -LiteralPath $Destination -File -Recurse
 $bytes = ($files | Measure-Object -Property Length -Sum).Sum
 Write-Host "Packaged $($files.Count) files ($([math]::Round($bytes / 1GB, 2)) GiB) at $Destination"
-Write-Host 'Production model files are only under checkpoints/; no Python or Node runtime is included.'
+foreach ($name in $modelNames) {
+    if (-not (Test-Path -LiteralPath (Join-Path $models $name) -PathType Leaf)) { throw "Packaged model is missing: $name" }
+}
+if (-not (Test-Path -LiteralPath (Join-Path $configDestination 'models.json'))) { throw 'Packaged configuration is missing.' }
+Write-Host 'Production model files are under src/checkpoints/; no Python or Node runtime is included.'

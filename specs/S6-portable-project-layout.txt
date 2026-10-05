@@ -1,0 +1,185 @@
+RetinaGram portable native project layout — 2026-10-05
+
+Implementation record written after the portability changes and validation.
+Earlier specs remain historical evidence, including their former layout names.
+
+1. Reason for the refactor
+The repository must be movable and cloneable without editing C++, JSON, CMake
+or scripts. Runtime resources must belong to the checkout/package being run.
+External SDKs may be elsewhere and are discovered or explicitly configured.
+
+2. Former path problem
+ModelConfig::defaultPath previously accepted RETINAGRAM_MODEL_CONFIG before
+searching executable ancestors. A stale process/global value selected another
+checkout's config. That config's ../checkpoints resolved to the former checkout,
+independently of the executable being launched. Asset root searches were also
+duplicated. CMake caches retained absolute build/dependency paths when copied.
+The underlying IQA failure was selection of the wrong deployment location,
+not corruption or an INT8 inference change.
+
+3. Former IQA ONNX failure
+The old config-relative checkpoints layout and stale config override could
+resolve iqa_int8.onnx in an obsolete root/checkpoints directory. After moving
+artifacts, a loader still following that layout would report the file missing.
+There is now one root resolver, one default config, and no old-model fallback.
+
+4. New source structure
+repo/
+  CMakeLists.txt, README.md, AGENTS.md, run.sh, deploy.sh
+  config/models.json
+  src/main.cpp
+  src/include/{app,core,image,inference,reporting,ui}/
+  src/{app,core,image,inference,reporting,ui}/
+  src/checkpoints/{iqa_int8.onnx,nafnet_fp16.onnx,
+                   grade_bf16_cam.pt,lesion_bf16_cam.pt}
+  assets/, scripts/, specs/, tests/, resources/, graphify-out/
+There is no root include/ or checkpoints/ directory.
+
+5. Header migration
+Public headers moved intact into src/include. Source includes retain namespace
+paths such as inference/ModelManager.h. AppPaths adds core/AppPaths.h. Qt MOC
+header lists use the relocated files. External SDK include paths remain external.
+
+6. Checkpoint migration and byte preservation
+The canonical directory is src/checkpoints. No current production artifact was
+re-exported, renamed, converted, compressed or numerically changed. Source and
+packaged size/SHA256 matched MODEL_MANIFEST.json for all four files:
+iqa_int8.onnx       13524697 bytes
+nafnet_fp16.onnx    59281867 bytes
+grade_bf16_cam.pt   55974002 bytes
+lesion_bf16_cam.pt   9177225 bytes
+Redundant development weights remain locally ignored following the earlier
+cleanup deletion-policy limitation; they are excluded from publication/package.
+
+7. Central root resolver
+src/core/AppPaths.cpp checks the executable directory and up to five parents,
+then the working directory and up to five parents. A valid root has BOTH
+config/models.json and src/checkpoints/. It returns a canonical runtime path.
+No arbitrary user directory search or compiled source-root string is used.
+RETINAGRAM_ROOT is optional, must be absolute and contain both markers, and
+fails clearly if empty/relative/invalid. Model, UI and PDF resource lookup share
+this helper. Explicit CLI config is established before workers start.
+
+8. Config resolution
+Normal GUI/CLI uses <resolved-root>/config/models.json. Legacy
+RETINAGRAM_MODEL_CONFIG is ignored. Advanced/testing --model-config <file>
+selects a config deliberately. Missing/duplicate argument use fails. The native
+private model-contract helper's existing explicit arguments remain supported.
+
+9. Model resolution
+config/models.json sets "checkpoints_directory": "../src/checkpoints".
+ModelConfig resolves this relative to that JSON file and validates flat model
+filenames, required stages and tensor contracts. Stage adapters load exactly
+the configured paths. There is no secondary root/checkpoints lookup. Models
+selected through an explicit testing config remain config-relative.
+
+10. IQA INT8 lookup and diagnostics
+--model-info prints the actual application root, config, each model path and
+Exists: yes. Both development and package IQA resolved to their own
+src/checkpoints/iqa_int8.onnx. A missing configured file error includes its
+resolved path, the application root and configuration path. IQA quantization,
+classes, calibration and numerical behavior were not changed.
+
+11. CMake changes
+RetinaGramPaths is a small Qt Core static library shared by application and
+test targets. Public include directories use ${CMAKE_CURRENT_SOURCE_DIR}/src/include.
+The inference library exports the same include root to its test consumers.
+All Qt MOC header paths moved. No CMAKE_SOURCE_DIR/CMAKE_CURRENT_SOURCE_DIR
+string is compiled into runtime resource lookup.
+
+12. run.sh behavior
+Git Bash/MSYS2 root run.sh derives its directory from BASH_SOURCE, maps optional
+--no-build, --clean, --validate and --model-info flags, and invokes the shared
+PowerShell workflow. The default verifies config/models, discovers VS x64 and
+SDKs, configures Release with Ninja, builds with three jobs, sets DLL PATH, and
+launches the GUI. CMake runs each build to check changed inputs/SDK overrides.
+--no-build requires an existing cache belonging to this root. Unknown or
+incompatible options fail. CLI execution is awaited and its exit code retained.
+
+13. deploy.sh behavior
+The root command uses the same verification/discovery/configure/build workflow
+and the existing deploy-windows.ps1 dependency packager. A previous package is
+archived only after checking its process locks. Required config/models are
+verified before packaged --validate-models runs with Windows-only PATH and
+without a development RETINAGRAM_ROOT. Success is printed only after validation.
+The lower-level deploy-windows.ps1 refuses a nonempty destination.
+
+14. Dependency discovery
+VS: vswhere x64 C++ tools, then a usable VSINSTALLDIR. CMake/Ninja: PATH or the
+discovered Visual Studio bundled tools. Qt: QT_ROOT, valid same-root cache,
+qtpaths6, then conventional system-drive Qt MSVC x64 installations. Torch:
+TORCH_ROOT, usable CUDA PyTorch on PATH, then valid cache. ORT: ONNXRUNTIME_ROOT,
+repo-local build/toolchain/onnxruntime-gpu-windows-1.26.0, then valid cache.
+Missing ORT reports official extraction/setup instructions. CUDA: CUDA_PATH,
+nvcc/valid cache, then conventional Program Files toolkit discovery. Required
+SDK files/directories are validated. No other RetinaGram checkout is a fallback.
+The executing PowerShell's own module directory is preferred to handle a Git
+Bash environment carrying another PowerShell version's PSModulePath.
+
+15. Development runtime layout
+build/ninja/RetinaGram.exe finds its enclosing repository through the markers.
+runtime-environment.ps1 rejects missing/stale source caches and discovers DLL
+directories through the shared helper. It copies the selected ORT DLLs beside
+the development executable, preventing an older installed DLL from winning.
+
+16. Packaged runtime layout
+build/package/
+  RetinaGram.exe, runtime DLLs and Qt plugins
+  config/models.json
+  src/checkpoints/<four configured artifacts>
+  assets/
+The same JSON bytes and relative checkpoints_directory work in both layouts.
+The executable finds package markers before enclosing repository markers.
+No root/checkpoints directory was present in the validated package.
+
+17. Stale-build and process handling
+The workflow checks CMAKE_HOME_DIRECTORY against its dynamically resolved root.
+A stale cache or --clean archives only the bounded build/ninja tree under
+ignored build/ninja.previous-<UUID> and creates a fresh tree. It refuses while
+local app/compiler processes or Ninja run, terminates no process, and never
+touches build/toolchain. Package replacement similarly archives only its bounded
+directory after a process check. Archives consume space until manually removed.
+
+18. Validation commands and measured results
+Actual VS2022 x64/MSVC 14.44, Qt 6.8.3, CMake 3.31/Ninja, Torch 2.8 CUDA 12.8,
+CUDA Toolkit 12.9, ORT GPU 1.26 and RTX 3060 12 GiB Release builds succeeded.
+./run.sh --model-info and --no-build --model-info succeeded with all Exists: yes.
+./run.sh --validate succeeded for all four models despite a deliberately stale
+RETINAGRAM_MODEL_CONFIG. Default ./run.sh launched a responding visible GUI.
+PowerShell parsing and Bash syntax checks succeeded.
+CTest inference 1/1 passed; direct inference suite 14 passed, 0 failed.
+Qt UI 7 passed, bundle 9 passed, functional 4 passed, each with 0 failed.
+These cover report single/bilateral actions, persisted History paths, batch
+folder behavior and Pause/Resume/Cancel. A config-selected renamed compatible
+grading artifact validated without changing the executable hash.
+./deploy.sh completed, and packaged --model-info/--validate-models passed with
+Windows-only PATH and unrelated working directory. Packaged GUI launch passed.
+Real packaged CUDA Usable analysis completed through restoration, grade 3,
+CUDA ORT provider, about 12.25 seconds for the analysis on this sample.
+Good and Usable bundle export passed with an explicitly invalid model config,
+confirming export does not initialize inference. Report screenshot and both
+one-page A4 PDFs were visually inspected; logo/fonts/layout remained readable.
+
+19. Actual relocation validation
+A fresh source/config/model copy under a different directory name was built
+using the same external SDK installations, without modifying source/config.
+./run.sh --validate loaded all four models. --model-info reported that copy's
+root, config and src/checkpoints paths. Its test cache was then deliberately
+changed to a former source root: --no-build refused it; normal --model-info
+archived the stale compiler tree, rebuilt and reported the relocated paths.
+The original project path was not a model/resource fallback.
+
+20. Known limits and retained semantics
+Windows x64 CUDA remains the tested platform. Bash orchestrates native Windows
+PowerShell; this is not Linux/WSL runtime support. SDK discovery is bounded and
+may require documented environment overrides for nonstandard installations.
+Cloning includes four normal Git model blobs; runtime SDKs are not vendored.
+Archive-based clean/deploy preserves data but can consume several GiB.
+Explicit invalid RETINAGRAM_ROOT fails intentionally. CMake caches themselves
+are inherently local and are never published. Historical specs may retain old
+layout/path evidence. Small local routing samples are not clinical validation;
+historical BF16/FP32 and repeated CUDA variability limitations remain.
+No inference precision, probability, lesion threshold/postprocessing, Grad-CAM,
+route or report-bundle semantic code was changed for this portability task.
+Final Graphify extraction diagnostics and publication commit/remote verification
+are recorded separately after this implementation record is written.

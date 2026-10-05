@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkpoints_directory": "../checkpoints",
+  "checkpoints_directory": "../src/checkpoints",
   "iqa": {
     "enabled": true,
     "adapter": "onnx_classification",

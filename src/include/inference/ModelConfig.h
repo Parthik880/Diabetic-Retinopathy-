@@ -32,7 +32,7 @@ struct LesionClassConfig {
     double minimumArea = 0, mergeDistance = 0;
 };
 struct ModelConfig {
-    QString file, checkpointsDirectory;
+    QString file, checkpointsDirectory, applicationRoot;
     StageConfig quality, restoration, grading, lesion;
     std::array<LesionClassConfig, 4> lesionClasses; // Canonical order, mapping in channel.
     double postprocessingReferenceSize = 768;

@@ -1,6 +1,6 @@
 """Offline exports from the untouched RetinaGram PyTorch checkpoints.
 
-Run with the CUDA-enabled development Python. Outputs stay in ../checkpoints.
+Run with the CUDA-enabled development Python. Outputs are written to src/checkpoints in the repository.
 """
 
 from __future__ import annotations

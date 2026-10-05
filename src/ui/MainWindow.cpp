@@ -11,6 +11,7 @@
 #include <QComboBox>
 #include <QCryptographicHash>
 #include <QCoreApplication>
+#include "core/AppPaths.h"
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -228,16 +229,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 }
 
 QString MainWindow::assetPath(const QString &name) const {
-    QStringList bases;
-    const QString app = QCoreApplication::applicationDirPath();
-    bases << QDir(app).filePath(QStringLiteral("assets"))
-          << QDir(app).filePath(QStringLiteral("../assets"))
-          << QDir(app).filePath(QStringLiteral("../../assets"));
-    for (const QString &base : bases) {
-        const QString candidate = QDir(base).filePath(name);
-        if (QFileInfo::exists(candidate)) return candidate;
-    }
-    return {};
+    return AppPaths::assetsPath(name);
 }
 
 void MainWindow::buildShell() {

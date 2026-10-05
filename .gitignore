@@ -48,13 +48,13 @@ session.json
 !.env.example
 
 # Only the audited production weights belong in the default release
-/checkpoints/*
-!/checkpoints/iqa_int8.onnx
-!/checkpoints/nafnet_fp16.onnx
-!/checkpoints/lesion_bf16_cam.pt
-!/checkpoints/grade_bf16_cam.pt
-!/checkpoints/MODEL_MANIFEST.json
-!/checkpoints/README.md
+/src/checkpoints/*
+!/src/checkpoints/iqa_int8.onnx
+!/src/checkpoints/nafnet_fp16.onnx
+!/src/checkpoints/lesion_bf16_cam.pt
+!/src/checkpoints/grade_bf16_cam.pt
+!/src/checkpoints/MODEL_MANIFEST.json
+!/src/checkpoints/README.md
 /scripts/*_report.json
 
 # Keep portable Graphify outputs, exclude interpreter/cache/temp state

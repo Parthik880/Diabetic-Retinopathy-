@@ -8,5 +8,5 @@ $exe = Join-Path $BuildDirectory 'RetinaGram.exe'
 if (-not (Test-Path -LiteralPath $exe)) { throw "Build RetinaGram.exe first: $exe" }
 . (Join-Path $PSScriptRoot 'runtime-environment.ps1')
 $null = Set-RetinaGramRuntimeEnvironment -BuildDirectory $BuildDirectory
-if ($Arguments.Count) { & $exe @Arguments; exit $LASTEXITCODE }
+if ($Arguments.Count) { & $exe @Arguments | Out-Host; exit $LASTEXITCODE }
 Start-Process -FilePath $exe -WorkingDirectory $root

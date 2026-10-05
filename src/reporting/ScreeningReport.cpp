@@ -1,5 +1,6 @@
 #include "reporting/ScreeningReport.h"
 #include "image/ImageDecoder.h"
+#include "core/AppPaths.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -49,13 +50,7 @@ QString confidenceText(const QVariant &confidence) {
     return confidence.isValid() && !confidence.isNull() ? QString::number(confidence.toDouble() * 100, 'f', 1) + '%' : "Unavailable";
 }
 QString assetPath(const QString &name) {
-    QDir dir(QCoreApplication::applicationDirPath());
-    for (int i = 0; i < 5; ++i) {
-        const auto path = dir.filePath("assets/" + name);
-        if (QFileInfo::exists(path)) return path;
-        if (!dir.cdUp()) break;
-    }
-    return QDir::current().filePath("assets/" + name);
+    return AppPaths::assetsPath(name);
 }
 QVariantMap withContext(QVariantMap result, QVariantMap patient, const QString &eye,
                         const QDateTime &scanTime, const QString &originalPath) {

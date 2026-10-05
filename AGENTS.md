@@ -16,7 +16,7 @@ This project is a native C++20 / Qt 6 application. The sibling Diabetic-Retinopa
 
 ## Inference architecture
 
-ModelManager is the serialized pipeline orchestrator and UI/controller QVariantMap boundary. Its mutex protects initialization and the complete analysis call. Persistent adapters are created once by ModelFactory from config/models.json. Public stage contracts in include/inference/ModelTypes.h are IQualityModel, IRestorationModel, IGradingModel and ILesionModel, with typed canonical results. Do not expose ONNX/Torch tensors through these interfaces.
+ModelManager is the serialized pipeline orchestrator and UI/controller QVariantMap boundary. Its mutex protects initialization and the complete analysis call. Persistent adapters are created once by ModelFactory from config/models.json. Public stage contracts in src/include/inference/ModelTypes.h are IQualityModel, IRestorationModel, IGradingModel and ILesionModel, with typed canonical results. Do not expose ONNX/Torch tensors through these interfaces.
 
 DO NOT add hard-coded model filenames, input resolutions, precision details, output tuple indices, class/channel ordering or backend session/module calls back into ModelManager.
 
@@ -28,15 +28,24 @@ ResultSerialization is the legacy UI map boundary. Preserve all existing result 
 
 ## Configuration and model replacement
 
-config/models.json version 1 is the deployment source of truth. It resolves checkpoints_directory relative to the JSON file and requires flat model filenames. RETINAGRAM_MODEL_CONFIG overrides the JSON path; missing or invalid explicit overrides must fail clearly. Required fields and supported values are validated rather than silently defaulted. All four pipeline stages remain required.
+DO NOT ADD MACHINE-SPECIFIC ABSOLUTE PATHS. Public headers belong under
+src/include; deployment models belong under src/checkpoints. Never recreate
+root/include or root/checkpoints. All project resource discovery must use
+src/include/core/AppPaths.h and src/core/AppPaths.cpp. Runtime roots are found
+from executable/working-directory ancestors with config/models.json and
+src/checkpoints markers, or a validated RETINAGRAM_ROOT. No CMake source path
+may be compiled into resource lookup. GUI startup ignores the legacy model-config
+environment variable; --model-config is explicit advanced/testing CLI input.
 
-Compatible replacements require only a new artifact in checkpoints/, configuration changes and restarting the app. Do not claim arbitrary runtime/tasks/tensor contracts or new clinical classes work through JSON alone. See README Replacing models and specs/S2-model-modularity.txt for the implemented schema and limits.
+config/models.json version 1 is the deployment source of truth. It resolves checkpoints_directory relative to the JSON file and requires flat model filenames. Legacy RETINAGRAM_MODEL_CONFIG is ignored. Only explicit --model-config CLI input selects an advanced/testing config; invalid explicit input must fail clearly. Required fields and supported values are validated rather than silently defaulted. All four pipeline stages remain required.
+
+Compatible replacements require only a new artifact in src/checkpoints/, configuration changes and restarting the app. Do not claim arbitrary runtime/tasks/tensor contracts or new clinical classes work through JSON alone. See README Replacing models and specs/S2-model-modularity.txt for the implemented schema and limits.
 
 Startup validates model contracts before patient work. Metadata covers ONNX and Torch schemas; a native CLI helper performs shape probes on cache misses so validation does not alter the patient process's kernel initialization order. The content-addressed contract cache includes model bytes, contract settings, Torch version and CPU/CUDA device. --validate-models forces validation; --model-info prints configuration. Changing validation assumptions requires updating the cache version/key and tests. Never cache failed validation.
 
 ## Pipeline invariants
 
-Production artifacts are iqa_int8.onnx (partial QDQ INT8/FP32, not fully INT8), nafnet_fp16.onnx (FP16 internals, FP32 boundary), lesion_bf16_cam.pt and grade_bf16_cam.pt (BF16 TorchScript). Verify hashes in checkpoints/MODEL_MANIFEST.json. Do not regenerate weights or change precision, preprocessing, thresholds, or numerical behavior during unrelated UI/documentation work. Original FP32 source checkpoints are kept outside this native branch.
+Production artifacts are iqa_int8.onnx (partial QDQ INT8/FP32, not fully INT8), nafnet_fp16.onnx (FP16 internals, FP32 boundary), lesion_bf16_cam.pt and grade_bf16_cam.pt (BF16 TorchScript). Verify hashes in src/checkpoints/MODEL_MANIFEST.json. Do not regenerate weights or change precision, preprocessing, thresholds, or numerical behavior during unrelated UI/documentation work. Original FP32 source checkpoints are kept outside this native branch.
 
 Default lesions use 768x768 input and independent sigmoid threshold 0.5, original-pixel coordinates, 8-connected components, the canonical minimum-area/proximity settings, full masks and Top-K display filtering. Grade labels are 0 No diabetic retinopathy, 1 Mild NPDR, 2 Moderate NPDR, 3 Severe NPDR, and 4 Proliferative DR.
 
@@ -54,6 +63,13 @@ IQA is invoked exactly once per eye. Good uses the original image for grading/CA
 
 ## Build and validation
 
+The normal Windows Git Bash/MSYS2 workflow is ./run.sh (configure/build/GUI),
+./run.sh --validate, ./run.sh --model-info, and ./deploy.sh (build/package/validate).
+SDK discovery is shared by scripts/dependencies.ps1. Stale build cache roots and
+--clean archive only build/ninja after process/path checks, preserving toolchain.
+Never delete a running compiler's tree. Re-test relocation from a second checkout
+and packaged startup with unrelated working directory after path changes.
+
 From x64 Native Tools Command Prompt for VS 2022:
 
 ```bat
@@ -66,7 +82,7 @@ cmake --build build\ninja --parallel 3
 
 Normal PowerShell may lack MSVC INCLUDE/LIB variables. C1083 missing <limits> normally means the compiler environment is uninitialized: use the tools prompt or VsDevCmd.bat -arch=x64. Do not change source to compensate.
 
-UI loop: edit -> build -> powershell -File scripts/run-dev.ps1. Packaging loop: edit -> build -> scripts/deploy-windows.ps1 -> build/package/RetinaGram.exe. Deployment does not imply compilation. scripts/runtime-environment.ps1 reads dependency paths from the selected CMake cache or environment overrides; do not add developer-specific absolute paths. Keep Qt, Torch, ORT and CUDA versions coherent.
+UI loop: edit -> ./run.sh. Packaging loop: edit -> ./deploy.sh -> build/package/RetinaGram.exe. These root commands configure and build. The lower-level scripts/run-dev.ps1 launches an existing build and scripts/deploy-windows.ps1 packages an existing build. scripts/runtime-environment.ps1 reads dependency paths from the selected CMake cache or environment overrides; do not add developer-specific absolute paths. Keep Qt, Torch, ORT and CUDA versions coherent.
 
 Use --screenshot for Capture, Analysis, Compare, Report, History, Batch Analysis and Cloud Sync. Historical desktop comparisons use 1426x952 / 1440x960; also verify 1920x1080 in the isolated UI runner. Compare identical viewport dimensions. Use --result or --batch-input and test fixture identities to avoid altering production sessions. Cloud Sync is currently local/disconnected; do not claim a working cloud backend.
 
@@ -74,7 +90,7 @@ Use the VS2022 x64 environment. RetinaGramInference is a static library shared b
 
 Enable RETINAGRAM_BUILD_INFERENCE_TESTS for configuration/routing/postprocessing tests and RETINAGRAM_BUILD_UI_TESTS for existing UI/functional gates. Validation fixtures use isolated app identities. scripts/compare_modularity.py compares archived before/after native results and PNG pixels. Exclude only variable run directories and timings; investigate any numerical, coordinate, mask, restoration, CAM or warning differences.
 
-scripts/deploy-windows.ps1 packages config/models.json and only the artifacts named in that config into one flat checkpoints/ directory. Test packaged --validate-models, visible launch and inference with PATH limited to Windows system folders. Keep Python and offline export tooling out of production runtime.
+scripts/deploy-windows.ps1 packages config/models.json and only the artifacts named in that config into one flat src/checkpoints/ directory. Test packaged --validate-models, visible launch and inference with PATH limited to Windows system folders. Keep Python and offline export tooling out of production runtime.
 
 Do not overwrite specs/S1-first_draft.txt. Write specs after code and validation; report measured results and limitations rather than an aspirational architecture.
 
